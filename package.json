@@ -1,0 +1,16 @@
+{
+  "name": "webmcp",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "repository": "https://github.com/jasonjmcghee/webmcp",
+  "author": "Jason McGhee",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "ws": "^8.18.1"
+  }
+}

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #log {
+            height: 300px;
+            border: 1px solid #ccc;
+            margin: 10px 0;
+            padding: 10px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 16px;
+        }
+        .status {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .disconnected { color: red; }
+        .connected { color: green; }
+        .connecting { color: orange; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Client</h1>
+    <div class="status disconnected" id="status">Disconnected</div>
+    
+    <button id="connect">Connect</button>
+    <button id="disconnect">Disconnect</button>
+    <button id="send">Send Ping</button>
+    
+    <div id="log"></div>
+    
+    <script>
+        // Configuration
+        const SERVER_URL = 'ws://localhost:4797';
+        const MAX_RECONNECT_ATTEMPTS = 5;
+        const RECONNECT_INTERVAL = 3000; // 3 seconds
+        
+        // Elements
+        const statusEl = document.getElementById('status');
+        const logEl = document.getElementById('log');
+        const connectBtn = document.getElementById('connect');
+        const disconnectBtn = document.getElementById('disconnect');
+        const sendBtn = document.getElementById('send');
+        
+        // WebSocket and state variables
+        let socket = null;
+        let reconnectAttempts = 0;
+        let reconnectTimeout = null;
+        let messageId = 0;
+        let pendingPings = {};
+        
+        // Logging function
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        // Update status display
+        function updateStatus(state) {
+            statusEl.textContent = state;
+            statusEl.className = `status ${state.toLowerCase()}`;
+        }
+        
+        // Connect to WebSocket server with retry logic
+        function connectWebSocket() {
+            if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+                log('Already connected or connecting');
+                return;
+            }
+            
+            updateStatus('Connecting');
+            log(`Connecting to ${SERVER_URL}...`);
+            
+            // Create new WebSocket connection
+            socket = new WebSocket(SERVER_URL);
+            
+            socket.onopen = () => {
+                updateStatus('Connected');
+                log('Connection established!', 'success');
+                reconnectAttempts = 0;
+                clearTimeout(reconnectTimeout);
+            };
+            
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    // Handle different message types
+                    if (data.type === 'pong' && pendingPings[data.id]) {
+                        const latency = Date.now() - pendingPings[data.id];
+                        log(`Received pong for message ${data.id} (latency: ${latency}ms)`, 'success');
+                        delete pendingPings[data.id];
+                    } else {
+                        log(`Received: ${event.data}`);
+                    }
+                } catch (error) {
+                    log(`Error parsing message: ${error.message}`, 'error');
+                }
+            };
+            
+            socket.onclose = (event) => {
+                updateStatus('Disconnected');
+                if (event.wasClean) {
+                    log(`Connection closed cleanly, code=${event.code}, reason=${event.reason}`);
+                } else {
+                    log('Connection died', 'error');
+                    
+                    // Attempt to reconnect if not manually disconnected
+                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        reconnectAttempts++;
+                        log(`Attempting to reconnect (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`, 'warning');
+                        reconnectTimeout = setTimeout(connectWebSocket, RECONNECT_INTERVAL);
+                    } else {
+                        log('Maximum reconnection attempts reached', 'error');
+                    }
+                }
+            };
+            
+            socket.onerror = (error) => {
+                log('WebSocket error', 'error');
+                console.error('WebSocket error:', error);
+            };
+        }
+        
+        // Disconnect from WebSocket server
+        function disconnectWebSocket() {
+            if (!socket) {
+                log('Not connected');
+                return;
+            }
+            
+            clearTimeout(reconnectTimeout);
+            reconnectAttempts = MAX_RECONNECT_ATTEMPTS; // Prevent auto-reconnect
+            
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.close();
+                log('Disconnected from server');
+            }
+        }
+        
+        // Send ping message
+        function sendPing() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                log('Not connected to server', 'error');
+                return;
+            }
+            
+            const id = messageId++;
+            const message = {
+                type: 'ping',
+                id: id,
+                timestamp: Date.now()
+            };
+            
+            pendingPings[id] = Date.now();
+            socket.send(JSON.stringify(message));
+            log(`Sent ping (id: ${id})`);
+        }
+        
+        // Event listeners
+        connectBtn.addEventListener('click', () => {
+            reconnectAttempts = 0;
+            connectWebSocket();
+        });
+        
+        disconnectBtn.addEventListener('click', disconnectWebSocket);
+        
+        sendBtn.addEventListener('click', sendPing);
+        
+        // Initial log entry
+        log('WebSocket client initialized, click "Connect" to start');
+    </script>
+</body>
+</html>
