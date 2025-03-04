@@ -41,7 +41,7 @@ class WebMCP {
     }
 
     _format(s) {
-        return s.replace(/[.:]/, '_');
+        return s.replace(/[.:]/g, '_');
     }
 
     /**
