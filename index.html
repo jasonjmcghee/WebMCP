@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MCP WebSocket Client</title>
+    <title>WebMCP Demo</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -27,6 +27,10 @@
         .connecting {
             background-color: #fff3cd;
             color: #856404;
+        }
+        .pending-auth {
+            background-color: #d1ecf1;
+            color: #0c5460;
         }
         #log-container {
             height: 300px;
@@ -79,22 +83,42 @@
             font-size: 0.8em;
             margin-left: 10px;
         }
+        #auth-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f8ff;
+            border-radius: 5px;
+            border: 1px solid #b8daff;
+        }
+        #encoded-pair {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin: 10px 0;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
-    <h1>MCP WebSocket Client</h1>
+    <h1>WebMCP</h1>
 
     <div id="connection-status" class="disconnected">
         Disconnected
     </div>
 
     <div class="form-group">
-        <label for="channel-name">Channel Path:</label>
-        <input type="text" id="channel-name" placeholder="/mypage1" value="/page1">
+        <label for="connection-token">Connection Token:</label>
+        <div style="display: flex;">
+            <input type="text" id="connection-token" placeholder="Paste connection token from server" style="flex-grow: 1;">
+            <button id="connect-btn" style="margin-left: 8px;">Connect</button>
+        </div>
+        <p class="help-text" style="font-size: 0.8em; margin-top: 5px; color: #666;">
+            Run <code>node src/websocket-server.js --new</code> to generate a token
+        </p>
     </div>
 
-    <button id="connect-btn">Connect</button>
-    <button id="disconnect-btn" disabled>Disconnect</button>
+    <button id="disconnect-btn" style="display: none;">Disconnect</button>
 
     <h2>Log</h2>
     <div id="log-container"></div>
@@ -130,8 +154,13 @@
         let isConnected = false;
         let isRegistered = false;
         let currentChannel = '';
+        let currentToken = '';
+        let currentServer = '';
         const availableTools = new Map();
         const pendingRequests = new Map();
+
+        // Constants
+        const REGISTER_PATH = '/register';
 
         // DOM elements
         const connectBtn = document.getElementById('connect-btn');
@@ -143,7 +172,7 @@
         const toolDescriptionInput = document.getElementById('tool-description');
         const toolSchemaInput = document.getElementById('tool-schema');
         const registerToolBtn = document.getElementById('register-tool-btn');
-        const channelNameInput = document.getElementById('channel-name');
+        const connectionTokenInput = document.getElementById('connection-token');
 
         // Helper function to log messages
         function log(message, type = 'info') {
@@ -162,44 +191,179 @@
             logContainer.scrollTop = logContainer.scrollHeight;
         }
 
-        // Connect to WebSocket server
-        function connectToServer() {
-            const channelPath = channelNameInput.value.trim();
+        // Generate a secure random token
+        function generateToken() {
+            const array = new Uint8Array(16);
+            window.crypto.getRandomValues(array);
+            return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+        }
 
-            if (!channelPath) {
-                log('Please specify a channel path', 'error');
+        // Base64 encode a string
+        function base64Encode(str) {
+            return btoa(str);
+        }
+
+        // Process connection token
+        function processConnectionToken(encodedToken) {
+            if (!encodedToken) {
+                log('Please enter a connection token', 'error');
+                return false;
+            }
+
+            try {
+                // Decode the base64 token
+                const jsonStr = atob(encodedToken);
+                const connectionData = JSON.parse(jsonStr);
+
+                // Extract server and token
+                const { server, token } = connectionData;
+
+                if (!server || !token) {
+                    log('Invalid connection token format', 'error');
+                    return false;
+                }
+
+                // Store connection info
+                currentServer = server;
+                currentToken = token;
+
+                // Format channel based on hostname
+                currentChannel = `/${window.location.host.replace(':', '_')}`;
+
+                return true;
+            } catch (error) {
+                log(`Error processing connection token: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Register with server using connection token
+        async function registerWithServer(encodedToken) {
+            if (!processConnectionToken(encodedToken)) {
+                return false;
+            }
+
+            log('Connecting to registration endpoint...', 'info');
+
+            // Update UI
+            connectionStatus.textContent = 'Registering...';
+            connectionStatus.className = 'connecting';
+            connectBtn.disabled = true;
+
+            // Connect to the registration endpoint
+            const regSocket = new WebSocket(`${currentServer}${REGISTER_PATH}`);
+
+            return new Promise((resolve, reject) => {
+                // Connection opened - send the token
+                regSocket.addEventListener('open', (event) => {
+                    log('Registration connection established', 'success');
+
+                    // Send the original encoded token back to the server
+                    const jsonStr = atob(encodedToken);
+                    const connectionData = JSON.parse(jsonStr);
+                    connectionData.host = window.location.host.replace(':', '_');
+                    regSocket.send(btoa(JSON.stringify(connectionData)));
+                });
+
+                // Listen for registration response
+                regSocket.addEventListener('message', (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+
+                        if (message.type === 'registerSuccess') {
+                            log(`Registration successful: ${message.message}`, 'success');
+
+                            // Registration complete, can now connect to channel
+                            resolve(true);
+                        } else if (message.type === 'error') {
+                            log(`Registration failed: ${message.message}`, 'error');
+                            reject(new Error(message.message));
+                        }
+                    } catch (error) {
+                        log(`Error parsing registration response: ${error.message}`, 'error');
+                        reject(error);
+                    }
+                });
+
+                // Handle registration errors
+                regSocket.addEventListener('error', (event) => {
+                    log('Registration connection error', 'error');
+                    reject(new Error('Connection error'));
+                });
+
+                // Handle registration connection close
+                regSocket.addEventListener('close', (event) => {
+                    log(`Registration connection closed: ${event.code} ${event.reason}`, 'info');
+
+                    if (event.code !== 1000) {
+                        // If it wasn't a normal closure, show an error
+                        log('Registration failed', 'error');
+                        reject(new Error('Connection closed'));
+                    } else {
+                        // Normal closure after successful registration
+                        resolve(true);
+                    }
+                });
+            });
+        }
+
+        // Connect to WebSocket server
+        async function connectToServer() {
+            const connectionToken = connectionTokenInput.value.trim();
+
+            if (!connectionToken) {
+                log('Please enter a connection token', 'error');
                 return;
             }
 
-            // Ensure path starts with /
-            const path = channelPath.startsWith('/') ? channelPath : `/${channelPath}`;
+            try {
+                // First register with server
+                const registered = await registerWithServer(connectionToken);
 
-            // Connect directly to the path
-            const serverUrl = `ws://localhost:4797${path}`;
+                if (!registered) {
+                    connectBtn.disabled = false;
+                    return;
+                }
 
-            // Update UI
-            connectionStatus.textContent = 'Connecting...';
-            connectionStatus.className = 'connecting';
-            connectBtn.disabled = true;
-            channelNameInput.disabled = true;
+                // Now connect to the actual channel
+                const serverUrl = `${currentServer}${currentChannel}?token=${currentToken}`;
 
-            log(`Connecting to ${serverUrl}...`);
+                // Update UI
+                connectionStatus.textContent = 'Connecting...';
+                connectionStatus.className = 'connecting';
 
-            // Create WebSocket connection with the path
-            socket = new WebSocket(serverUrl);
+                log(`Connecting to ${serverUrl}...`);
+
+                // Create WebSocket connection with the path and token
+                socket = new WebSocket(serverUrl);
+            } catch (error) {
+                log(`Connection error: ${error.message}`, 'error');
+                connectBtn.disabled = false;
+            }
+
+            // We need to set up the event listeners outside the async try-catch
+        }
+
+        // Set up socket event listeners
+        function setupSocketListeners() {
+            if (!socket) return;
 
             // Connection opened
             socket.addEventListener('open', (event) => {
                 isConnected = true;
-                connectionStatus.textContent = `Connected to ${path}`;
+                connectionStatus.textContent = `Connected to ${currentChannel}`;
                 connectionStatus.className = 'connected';
+
+                // Update UI
+                connectBtn.style.display = 'none';
+                connectionTokenInput.style.display = 'none';
+                document.querySelector('.help-text').style.display = 'none';
+                disconnectBtn.style.display = 'block';
 
                 log('Connection established', 'success');
 
-                // We're already connected to the path, so mark as registered
+                // We're connected to the channel, so mark as registered
                 isRegistered = true;
-                currentChannel = path;
-                disconnectBtn.disabled = false;
                 registerToolBtn.disabled = false;
             });
 
@@ -219,15 +383,26 @@
             socket.addEventListener('close', (event) => {
                 isConnected = false;
                 isRegistered = false;
-                currentChannel = '';
                 connectionStatus.textContent = 'Disconnected';
                 connectionStatus.className = 'disconnected';
+
+                // Reset UI
+                connectBtn.style.display = 'inline-block';
+                connectionTokenInput.style.display = 'inline-block';
+                document.querySelector('.help-text').style.display = 'block';
+                disconnectBtn.style.display = 'none';
                 connectBtn.disabled = false;
-                disconnectBtn.disabled = true;
                 registerToolBtn.disabled = true;
-                channelNameInput.disabled = false;
 
                 log(`Connection closed: ${event.code} ${event.reason}`, 'warning');
+
+                // Check if it was an authorization error
+                if (event.code === 1001 || event.code === 401) {
+                    log('Authorization failed. Please use a new connection token.', 'error');
+                    currentToken = ''; // Clear the token
+                    currentServer = '';
+                    currentChannel = '';
+                }
             });
 
             // Connection error
@@ -237,6 +412,8 @@
                 // The error event doesn't provide error details
                 if (isConnected) {
                     log('Connection error occurred', 'warning');
+                } else {
+                    log('Connection failed. The token may not be authorized yet.', 'error');
                 }
             });
         }
@@ -449,7 +626,8 @@
                 if (currentChannel) {
                     const channelBadge = document.createElement('span');
                     channelBadge.className = 'channel-badge';
-                    channelBadge.textContent = currentChannel;
+                    const pieces = currentChannel.split("/");
+                    channelBadge.textContent = pieces[pieces.length - 1];
                     nameElement.appendChild(channelBadge);
                 }
 
@@ -481,7 +659,10 @@
         }
 
         // Event listeners
-        connectBtn.addEventListener('click', connectToServer);
+        connectBtn.addEventListener('click', async () => {
+            await connectToServer();
+            setupSocketListeners();
+        });
 
         disconnectBtn.addEventListener('click', () => {
             if (socket) {

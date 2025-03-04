@@ -1,7 +1,20 @@
-const { Server } = require("@modelcontextprotocol/sdk/server/index.js");
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
-const WebSocket = require('ws');
-const { ListToolsRequestSchema, CallToolRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import WebSocket from 'ws';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Server token for MCP authentication
+const serverToken = process.env.WEBMCP_SERVER_TOKEN;
+
+// Check if server token is set
+if (!serverToken) {
+  console.error('ERROR: WEBMCP_SERVER_TOKEN not found in environment variables.');
+  console.error('Please run the WebSocket server first to generate a token.');
+  process.exit(1);
+}
 
 // Create a central MCP server that communicates over stdio
 const mcpServer = new Server(
@@ -90,9 +103,10 @@ function handleWebSocketMessage(message) {
 
 // Function to connect to the WebSocket server
 function connectToWebSocketServer() {
-  // Connect to the MCP path directly
-  const serverUrl = `ws://localhost:4797${MCP_PATH}`;
-  console.error(`Connecting to WebSocket server at ${serverUrl}...`);
+  // Connect to the MCP path directly with server token
+  const serverUrl = `ws://localhost:4797${MCP_PATH}?token=${serverToken}`;
+  
+  console.error(`Connecting to WebSocket server at ${MCP_PATH} with authentication...`);
 
   wsClient = new WebSocket(serverUrl);
 
@@ -103,7 +117,6 @@ function connectToWebSocketServer() {
 
   // Handle incoming messages
   wsClient.on('message', (message) => {
-    console.error("MESSAGEEEEE!!!!!!!!!!!!!", message)
     handleWebSocketMessage(message);
   });
 
@@ -227,8 +240,6 @@ mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
     });
 
     const tools = await responsePromise;
-
-    console.error(tools);
 
     // Wait for the response
     return { tools };

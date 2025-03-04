@@ -6,15 +6,23 @@
   "repository": "https://github.com/jasonjmcghee/webmcp",
   "author": "Jason McGhee",
   "scripts": {
-    "start-ws-server": "node websocket-server.js",
-    "start-mcp-client": "node server.js",
-    "start-both": "node websocket-server.js & node server.js",
+    "start-ws-server": "node src/websocket-server.js",
+    "start-daemon": "node src/websocket-server.js",
+    "stop-daemon": "node src/websocket-server.js --quit",
+    "start-mcp-client": "node src/server.js",
+    "start-foreground": "node src/websocket-server.js --foreground",
+    "authorize": "node src/websocket-server.js --new",
+    "build": "node build.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "license": "MIT",
   "type": "module",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.1",
+    "dotenv": "^16.4.1",
     "ws": "^8.18.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
   }
 }
