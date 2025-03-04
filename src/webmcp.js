@@ -245,7 +245,9 @@ class WebMCP {
         Object.assign(toolsContainer.style, {
             listStyle: 'none',
             padding: '0',
-            margin: '0'
+            margin: '0',
+            'max-height': '160px',
+            overflow: 'scroll',
         });
 
         toolsList.appendChild(toolsHeader);
