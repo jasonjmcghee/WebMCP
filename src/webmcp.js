@@ -40,6 +40,10 @@ class WebMCP {
         this._init();
     }
 
+    _format(s) {
+        return s.replace(/[.:]/, '_');
+    }
+
     /**
      * Initialize the WebMCP widget
      * @private
@@ -79,7 +83,7 @@ class WebMCP {
 
                     // Set the connection properties directly
                     this.currentServer = connectionInfo.server;
-                    this.currentChannel = `/${connectionInfo.channelHost || window.location.host.replace(':', '_')}`;
+                    this.currentChannel = `/${connectionInfo.channelHost || this._format(window.location.host)}`;
 
                     // Set the current token from connection info
                     if (connectionInfo.token.includes('{')) {
@@ -612,7 +616,7 @@ class WebMCP {
             const connectionInfo = {
                 token: connectionToken,
                 server: this.currentServer,
-                host: window.location.host.replace(':', '_')
+                host: this._format(window.location.host)
             };
 
             // Check if we have connection data already in sessionStorage
@@ -624,7 +628,7 @@ class WebMCP {
                     const connectionInfo = JSON.parse(storedConnectionInfo);
                     // If we already have a valid token and server, we can skip registration
                     if (connectionInfo.server === this.currentServer &&
-                        connectionInfo.host === window.location.host.replace(':', '_')) {
+                        connectionInfo.host === this._format(window.location.host)) {
                         skipRegistration = true;
                     }
                 } catch (error) {
@@ -714,7 +718,7 @@ class WebMCP {
             this.currentToken = token;
 
             // Format channel based on hostname
-            this.currentChannel = `/${window.location.host.replace(':', '_')}`;
+            this.currentChannel = `/${this._format(window.location.host)}`;
 
             return true;
         } catch (error) {
@@ -744,7 +748,7 @@ class WebMCP {
                 // Send the original encoded token back to the server
                 const jsonStr = atob(encodedToken);
                 const connectionData = JSON.parse(jsonStr);
-                connectionData.host = window.location.host.replace(':', '_');
+                connectionData.host = this._format(window.location.host);
                 regSocket.send(btoa(JSON.stringify(connectionData)));
             });
 

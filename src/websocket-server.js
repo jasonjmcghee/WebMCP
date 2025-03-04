@@ -375,7 +375,7 @@ wss.on('connection', (ws, req) => {
 });
 
 function formatChannel(channel) {
-    return `/${channel.replace(':', '_')}`
+    return `/${channel.replace(/[.:]/, '_')}`
 }
 
 // Handle ping messages
