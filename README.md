@@ -2,6 +2,18 @@
 
 WebMCP is a WebSocket-based implementation of the Model Context Protocol, allowing web pages to expose tools to LLMs through a WebSocket server.
 
+## New: webmcp.js - Drop-in Snippet
+
+The latest addition to WebMCP is `webmcp.js` - a drop-in JavaScript snippet that can be added to any website to enable MCP tool usage.
+
+**Features:**
+- Small blue square in the corner of your website
+- Expandable UI for connection management
+- Uses a service worker to maintain connections when navigating
+- Auto-unregisters after 5 minutes of inactivity
+- Easy tool registration API
+- Works with single page apps and regular websites
+
 ## Architecture
 
 The system consists of three main components:
@@ -139,6 +151,82 @@ npm run build
 ```
 
 This generates both CommonJS (.cjs) and ES Module (.js) versions in the `build` directory, ready for distribution.
+
+## Using webmcp.js
+
+### Basic Integration
+
+1. Add both the WebMCP script and service worker to your website:
+
+```html
+<!-- In your HTML file -->
+<script src="src/webmcp.js"></script>
+```
+
+```
+<!-- Make sure webmcp-sw.js is available at the same location -->
+/path/to/webmcp.js
+/path/to/webmcp-sw.js
+```
+
+2. The script automatically creates a global `window.webMCP` instance and adds the widget to your page.
+
+3. Connect to the WebMCP server by clicking the blue square in the corner and pasting a connection token.
+
+### Registering Tools
+
+Register tools using the WebMCP API:
+
+```javascript
+// Get the automatically created instance
+const mcp = window.webMCP;
+
+// Register a tool
+mcp.registerTool(
+  'calculator', 
+  'Performs basic math operations',
+  {
+    a: { type: "number" },
+    b: { type: "number" },
+    operation: {
+      type: "string",
+      enum: ["add", "subtract", "multiply", "divide"]
+    }
+  },
+  function(args) {
+    const { operation, a, b } = args;
+    
+    switch (operation) {
+      case 'add': return a + b;
+      case 'subtract': return a - b;
+      case 'multiply': return a * b;
+      case 'divide':
+        if (b === 0) throw new Error('Division by zero');
+        return a / b;
+      default:
+        throw new Error(`Unknown operation: ${operation}`);
+    }
+  }
+);
+```
+
+### Customization
+
+You can create your own instance with custom options:
+
+```javascript
+const mcp = new WebMCP({
+  color: '#4CAF50',        // Change color
+  position: 'top-right',   // Position: 'top-right', 'top-left', 'bottom-right', 'bottom-left'
+  size: '40px',            // Size of the square
+  padding: '15px',         // Padding from edge of screen
+  inactivityTimeout: 10 * 60 * 1000  // Time until auto-unregister (10 minutes)
+});
+```
+
+### Example
+
+Check out `example.html` for a simple example of using webmcp.js.
 
 ## How It Works
 

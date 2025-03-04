@@ -3,53 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebMCP Demo</title>
+    <title>WebMCP Example</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
+            line-height: 1.5;
         }
-        #connection-status {
-            padding: 10px;
-            margin-bottom: 20px;
+        h1 {
+            color: #333;
+        }
+        .demo-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f5f5f5;
             border-radius: 5px;
         }
-        .connected {
-            background-color: #d4edda;
-            color: #155724;
+        code {
+            background-color: #eee;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
         }
-        .disconnected {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        .connecting {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-        .pending-auth {
-            background-color: #d1ecf1;
-            color: #0c5460;
-        }
-        #log-container {
-            height: 300px;
-            overflow-y: scroll;
-            border: 1px solid #ccc;
+        pre {
+            background-color: #f8f8f8;
             padding: 10px;
-            margin-bottom: 20px;
-            background-color: #f8f9fa;
-        }
-        #tools-container {
-            border: 1px solid #ccc;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-        .tool-item {
-            margin-bottom: 10px;
-            padding: 10px;
-            background-color: #e9ecef;
             border-radius: 5px;
+            overflow-x: auto;
         }
         button {
             padding: 8px 15px;
@@ -58,632 +40,132 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            margin-right: 10px;
         }
         button:hover {
             background-color: #0069d9;
         }
-        button:disabled {
-            background-color: #6c757d;
-            cursor: not-allowed;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        input[type="text"] {
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            width: 200px;
-        }
-        .channel-badge {
-            background-color: #17a2b8;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 10px;
-            font-size: 0.8em;
-            margin-left: 10px;
-        }
-        #auth-container {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f0f8ff;
-            border-radius: 5px;
-            border: 1px solid #b8daff;
-        }
-        #encoded-pair {
-            background-color: #f8f9fa;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            margin: 10px 0;
-            word-break: break-all;
-        }
     </style>
 </head>
 <body>
-    <h1>WebMCP</h1>
+    <h1>WebMCP Example</h1>
 
-    <div id="connection-status" class="disconnected">
-        Disconnected
+    <div class="demo-section">
+        <h2>About WebMCP</h2>
+        <p>WebMCP is a JavaScript library that allows any website to integrate with the Model Context Protocol.
+           It provides a small widget in the corner of your page that allows users to interact with your webpage via LLM or agent.</p>
+        <p>The widget appears as a small blue square in the bottom right corner. Click it to expand and connect using a token.</p>
     </div>
 
-    <div class="form-group">
-        <label for="connection-token">Connection Token:</label>
-        <div style="display: flex;">
-            <input type="text" id="connection-token" placeholder="Paste connection token from server" style="flex-grow: 1;">
-            <button id="connect-btn" style="margin-left: 8px;">Connect</button>
-        </div>
-        <p class="help-text" style="font-size: 0.8em; margin-top: 5px; color: #666;">
-            Run <code>node src/websocket-server.js --new</code> to generate a token
-        </p>
+    <div class="demo-section">
+        <h2>Getting Started</h2>
+        <p>To use WebMCP, simply include the script on your page:</p>
+        <pre><code>&lt;script src="webmcp.js"&gt;&lt;/script&gt;</code></pre>
+        <p>The WebMCP widget will automatically initialize and appear in the bottom right corner of your page.</p>
     </div>
 
-    <button id="disconnect-btn" style="display: none;">Disconnect</button>
+    <div class="demo-section">
+        <h2>Registering tools</h2>
+        <span>Tools are registered via calling <pre style="display: inline"><code>registerTool</code></pre>.</span>
+        <pre><code>// Initialize with custom options
+const mcp = new WebMCP({
+    color: '#4CAF50',
+    position: 'top-right',
+    size: '40px',
+    padding: '15px'
+});
 
-    <h2>Log</h2>
-    <div id="log-container"></div>
+// Register custom tools
+mcp.registerTool(
+    'weather',
+    'Get weather information',
+    {
+        location: { type: "string" }
+    },
+    function(args) {
+        return `Weather for ${args.location}: Sunny, 22°C`;
+    }
+);</code></pre>
 
-    <h2>Available Tools</h2>
-    <div id="tools-container">
-        <p>No tools registered yet.</p>
+        <span>To provide the best experience for users, it is recommended to register all tools directly after loading
+            <pre style="display: inline"><code>&lt;script src="webmcp.js"&gt;&lt;/script&gt;</code></pre>,
+            as MCP clients may need to be restarted to get the available tools.
+        </span>
+        <p>For the sake of demonstration, the below can be clicked to dynamically register a new tool:</p>
+        <button id="register-weather">Register Weather Tool</button>
+        <button id="register-time">Register Time Tool</button>
     </div>
 
-    <h2>Custom Tool Definition</h2>
-    <div>
-        <div class="form-group">
-            <label for="tool-name">Tool Name:</label>
-            <input type="text" id="tool-name" placeholder="calculator">
-        </div>
-
-        <div class="form-group">
-            <label for="tool-description">Tool Description:</label>
-            <input type="text" id="tool-description" placeholder="Performs calculations">
-        </div>
-
-        <div class="form-group">
-            <label for="tool-schema">Tool Schema:</label>
-            <textarea id="tool-schema" placeholder="{ type: string }"></textarea>
-        </div>
-
-        <button id="register-tool-btn" disabled>Register Tool</button>
+    <div class="demo-section">
+        <h2>Connect to WebMCP Server</h2>
+        <p>To use WebMCP with a model, you need to:</p>
+        <ol>
+            <li>Start the WebMCP server: <code>npm run start-ws-server</code></li>
+            <li>Generate a connection token: <code>npm run authorize</code></li>
+            <li>Click the blue square in the corner and paste the token</li>
+            <li>Start the MCP client: <code>npm run start-mcp-client</code></li>
+        </ol>
     </div>
 
+    <!-- Load WebMCP script -->
+    <script src="src/webmcp.js"></script>
+
+    <!-- Demo script -->
     <script>
-        // Global variables
-        let socket = null;
-        let isConnected = false;
-        let isRegistered = false;
-        let currentChannel = '';
-        let currentToken = '';
-        let currentServer = '';
-        const availableTools = new Map();
-        const pendingRequests = new Map();
-
-        // Constants
-        const REGISTER_PATH = '/register';
-
-        // DOM elements
-        const connectBtn = document.getElementById('connect-btn');
-        const disconnectBtn = document.getElementById('disconnect-btn');
-        const connectionStatus = document.getElementById('connection-status');
-        const logContainer = document.getElementById('log-container');
-        const toolsContainer = document.getElementById('tools-container');
-        const toolNameInput = document.getElementById('tool-name');
-        const toolDescriptionInput = document.getElementById('tool-description');
-        const toolSchemaInput = document.getElementById('tool-schema');
-        const registerToolBtn = document.getElementById('register-tool-btn');
-        const connectionTokenInput = document.getElementById('connection-token');
-
-        // Helper function to log messages
-        function log(message, type = 'info') {
-            const logEntry = document.createElement('div');
-            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-
-            if (type === 'error') {
-                logEntry.style.color = '#dc3545';
-            } else if (type === 'success') {
-                logEntry.style.color = '#28a745';
-            } else if (type === 'warning') {
-                logEntry.style.color = '#ffc107';
-            }
-
-            logContainer.appendChild(logEntry);
-            logContainer.scrollTop = logContainer.scrollHeight;
-        }
-
-        // Generate a secure random token
-        function generateToken() {
-            const array = new Uint8Array(16);
-            window.crypto.getRandomValues(array);
-            return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-        }
-
-        // Base64 encode a string
-        function base64Encode(str) {
-            return btoa(str);
-        }
-
-        // Process connection token
-        function processConnectionToken(encodedToken) {
-            if (!encodedToken) {
-                log('Please enter a connection token', 'error');
-                return false;
-            }
-
-            try {
-                // Decode the base64 token
-                const jsonStr = atob(encodedToken);
-                const connectionData = JSON.parse(jsonStr);
-
-                // Extract server and token
-                const { server, token } = connectionData;
-
-                if (!server || !token) {
-                    log('Invalid connection token format', 'error');
-                    return false;
-                }
-
-                // Store connection info
-                currentServer = server;
-                currentToken = token;
-
-                // Format channel based on hostname
-                currentChannel = `/${window.location.host.replace(':', '_')}`;
-
-                return true;
-            } catch (error) {
-                log(`Error processing connection token: ${error.message}`, 'error');
-                return false;
-            }
-        }
-
-        // Register with server using connection token
-        async function registerWithServer(encodedToken) {
-            if (!processConnectionToken(encodedToken)) {
-                return false;
-            }
-
-            log('Connecting to registration endpoint...', 'info');
-
-            // Update UI
-            connectionStatus.textContent = 'Registering...';
-            connectionStatus.className = 'connecting';
-            connectBtn.disabled = true;
-
-            // Connect to the registration endpoint
-            const regSocket = new WebSocket(`${currentServer}${REGISTER_PATH}`);
-
-            return new Promise((resolve, reject) => {
-                // Connection opened - send the token
-                regSocket.addEventListener('open', (event) => {
-                    log('Registration connection established', 'success');
-
-                    // Send the original encoded token back to the server
-                    const jsonStr = atob(encodedToken);
-                    const connectionData = JSON.parse(jsonStr);
-                    connectionData.host = window.location.host.replace(':', '_');
-                    regSocket.send(btoa(JSON.stringify(connectionData)));
-                });
-
-                // Listen for registration response
-                regSocket.addEventListener('message', (event) => {
-                    try {
-                        const message = JSON.parse(event.data);
-
-                        if (message.type === 'registerSuccess') {
-                            log(`Registration successful: ${message.message}`, 'success');
-
-                            // Registration complete, can now connect to channel
-                            resolve(true);
-                        } else if (message.type === 'error') {
-                            log(`Registration failed: ${message.message}`, 'error');
-                            reject(new Error(message.message));
-                        }
-                    } catch (error) {
-                        log(`Error parsing registration response: ${error.message}`, 'error');
-                        reject(error);
-                    }
-                });
-
-                // Handle registration errors
-                regSocket.addEventListener('error', (event) => {
-                    log('Registration connection error', 'error');
-                    reject(new Error('Connection error'));
-                });
-
-                // Handle registration connection close
-                regSocket.addEventListener('close', (event) => {
-                    log(`Registration connection closed: ${event.code} ${event.reason}`, 'info');
-
-                    if (event.code !== 1000) {
-                        // If it wasn't a normal closure, show an error
-                        log('Registration failed', 'error');
-                        reject(new Error('Connection closed'));
-                    } else {
-                        // Normal closure after successful registration
-                        resolve(true);
-                    }
-                });
-            });
-        }
-
-        // Connect to WebSocket server
-        async function connectToServer() {
-            const connectionToken = connectionTokenInput.value.trim();
-
-            if (!connectionToken) {
-                log('Please enter a connection token', 'error');
-                return;
-            }
-
-            try {
-                // First register with server
-                const registered = await registerWithServer(connectionToken);
-
-                if (!registered) {
-                    connectBtn.disabled = false;
-                    return;
-                }
-
-                // Now connect to the actual channel
-                const serverUrl = `${currentServer}${currentChannel}?token=${currentToken}`;
-
-                // Update UI
-                connectionStatus.textContent = 'Connecting...';
-                connectionStatus.className = 'connecting';
-
-                log(`Connecting to ${serverUrl}...`);
-
-                // Create WebSocket connection with the path and token
-                socket = new WebSocket(serverUrl);
-            } catch (error) {
-                log(`Connection error: ${error.message}`, 'error');
-                connectBtn.disabled = false;
-            }
-
-            // We need to set up the event listeners outside the async try-catch
-        }
-
-        // Set up socket event listeners
-        function setupSocketListeners() {
-            if (!socket) return;
-
-            // Connection opened
-            socket.addEventListener('open', (event) => {
-                isConnected = true;
-                connectionStatus.textContent = `Connected to ${currentChannel}`;
-                connectionStatus.className = 'connected';
-
-                // Update UI
-                connectBtn.style.display = 'none';
-                connectionTokenInput.style.display = 'none';
-                document.querySelector('.help-text').style.display = 'none';
-                disconnectBtn.style.display = 'block';
-
-                log('Connection established', 'success');
-
-                // We're connected to the channel, so mark as registered
-                isRegistered = true;
-                registerToolBtn.disabled = false;
-            });
-
-            // Listen for messages
-            socket.addEventListener('message', (event) => {
-                try {
-                    const message = JSON.parse(event.data);
-                    log(`Received: ${message.type}`);
-
-                    handleServerMessage(message);
-                } catch (error) {
-                    log(`Error parsing message: ${error.message}`, 'error');
-                }
-            });
-
-            // Connection closed
-            socket.addEventListener('close', (event) => {
-                isConnected = false;
-                isRegistered = false;
-                connectionStatus.textContent = 'Disconnected';
-                connectionStatus.className = 'disconnected';
-
-                // Reset UI
-                connectBtn.style.display = 'inline-block';
-                connectionTokenInput.style.display = 'inline-block';
-                document.querySelector('.help-text').style.display = 'block';
-                disconnectBtn.style.display = 'none';
-                connectBtn.disabled = false;
-                registerToolBtn.disabled = true;
-
-                log(`Connection closed: ${event.code} ${event.reason}`, 'warning');
-
-                // Check if it was an authorization error
-                if (event.code === 1001 || event.code === 401) {
-                    log('Authorization failed. Please use a new connection token.', 'error');
-                    currentToken = ''; // Clear the token
-                    currentServer = '';
-                    currentChannel = '';
-                }
-            });
-
-            // Connection error
-            socket.addEventListener('error', (event) => {
-                log('WebSocket error', 'error');
-
-                // The error event doesn't provide error details
-                if (isConnected) {
-                    log('Connection error occurred', 'warning');
-                } else {
-                    log('Connection failed. The token may not be authorized yet.', 'error');
-                }
-            });
-        }
-
-        // Handle messages from the server
-        function handleServerMessage(message) {
-            switch (message.type) {
-                case 'welcome':
-                    log(`Server says: ${message.message}`, 'success');
-
-                    // Welcome message contains the channel info, register tools
-                    registerDefaultTools();
-                    break;
-
-                case 'toolRegistered':
-                    log(`Tool registered with server: ${message.name}`, 'success');
-                    break;
-
-                case 'callTool':
-                    // Server is asking us to execute a tool
-                    handleToolCall(message);
-                    break;
-
-                case 'listTools':
-                    // Server is asking for available tools
-                    sendToolsList(message.id);
-                    break;
-
-                case 'ping':
-                    // Respond to ping
-                    sendMessage({
-                        type: 'pong',
-                        id: message.id,
-                        timestamp: Date.now()
-                    });
-                    break;
-
-                case 'error':
-                    log(`Server error: ${message.message}`, 'error');
-                    break;
-
-                default:
-                    log(`Unknown message type: ${message.type}`, 'warning');
-                    break;
-            }
-        }
-
-        // Handle tool call from server
-        function handleToolCall(message) {
-            const { id, tool, arguments: args } = message;
-
-            log(`Tool call: ${tool} with args: ${JSON.stringify(args)}`);
-
-            if (!availableTools.has(tool)) {
-                sendMessage({
-                    id,
-                    type: 'toolResponse',
-                    error: `Tool not found: ${tool}`
-                });
-                return;
-            }
-
-            // Execute the tool
-            try {
-                const toolFn = availableTools.get(tool).execute;
-
-                // For this demo, we'll support a few basic tools
-                let result;
-
-                if (tool === 'calculator') {
-                    result = `${executeCalculator(args)}`;
-                } else if (tool === 'echo') {
-                    result = args.message;
-                } else if (tool === 'weather') {
-                    result = getWeatherInfo(args);
-                } else {
-                    // For any other tool, we'll just return the arguments
-                    result = `Tool executed: ${tool} with args: ${JSON.stringify(args)}`;
-                }
-
-                // Send the response
-                sendMessage({
-                    id,
-                    type: 'toolResponse',
-                    result
-                });
-
-                log(`Tool response sent for ${tool}`, 'success');
-            } catch (error) {
-                sendMessage({
-                    id,
-                    type: 'toolResponse',
-                    error: error.message
-                });
-                log(`Tool execution error: ${error.message}`, 'error');
-            }
-        }
-
-        // Sample tool implementations
-        function executeCalculator(args) {
-            const { operation, a, b } = args;
-
-            switch (operation) {
-                case 'add':
-                    return a + b;
-                case 'subtract':
-                    return a - b;
-                case 'multiply':
-                    return a * b;
-                case 'divide':
-                    if (b === 0) throw new Error('Division by zero');
-                    return a / b;
-                default:
-                    throw new Error(`Unknown operation: ${operation}`);
-            }
-        }
-
-        function getWeatherInfo({ location }) {
-            // In a real implementation, you would call a weather API
-            return `Weather for ${location}: Sunny, 22°C`;
-        }
-
-        // Send available tools list
-        function sendToolsList(requestId) {
-            const toolsList = Array.from(availableTools.values()).map(tool => ({
-                name: tool.name,
-                description: tool.description,
-                inputSchema: tool.inputSchema,
-            }));
-
-            sendMessage({
-                id: requestId,
-                type: 'listToolsResponse',
-                tools: toolsList
-            });
-
-            log(`Sent tools list: ${toolsList.length} tools`, 'success');
-        }
-
-        // Send a message to the server
-        function sendMessage(message) {
-            if (!isConnected) {
-                log('Cannot send message: not connected', 'error');
-                return;
-            }
-
-            try {
-                socket.send(JSON.stringify(message));
-            } catch (error) {
-                log(`Error sending message: ${error.message}`, 'error');
-            }
-        }
-
-        // Register a new tool
-        function registerTool(name, description, schema, executeFn) {
-            if (!name) {
-                log('Tool name is required', 'error');
-                return;
-            }
-
-            // Add the tool to local registry
-            availableTools.set(name, {
-                name,
-                description: description || `Tool: ${name}`,
-                execute: executeFn || function(args) {
-                    return `Default implementation of ${name} with args: ${JSON.stringify(args)}`;
+        // Get reference to WebMCP instance (automatically created)
+        const mcp = window.webMCP;
+
+        // Weather tool registration
+        document.getElementById('register-weather').addEventListener('click', function() {
+            mcp.registerTool(
+                'weather',
+                'Get weather information for a location',
+                {
+                    location: { type: "string" }
                 },
-                inputSchema: {
-                    type: "object",
-                    properties: schema,
+                function(args) {
+                    return `Weather for ${args.location}: Sunny, 22°C`;
                 }
-            });
-
-            // Register the tool with the server
-            if (isRegistered) {
-                sendMessage({
-                    type: 'registerTool',
-                    name,
-                    description: description || `Tool: ${name}`,
-                    inputSchema: {
-                        type: "object",
-                        properties: schema
-                    },
-                });
-
-                log(`Registering tool with server: ${name}`);
-            }
-
-            updateToolsDisplay();
-            log(`Tool added locally: ${name}`, 'success');
-        }
-
-        // Update the tools display
-        function updateToolsDisplay() {
-            toolsContainer.innerHTML = '';
-
-            if (availableTools.size === 0) {
-                toolsContainer.innerHTML = '<p>No tools registered yet.</p>';
-                return;
-            }
-
-            availableTools.forEach((tool, name) => {
-                const toolElement = document.createElement('div');
-                toolElement.className = 'tool-item';
-
-                const nameElement = document.createElement('strong');
-                nameElement.textContent = name;
-
-                // Add channel badge
-                if (currentChannel) {
-                    const channelBadge = document.createElement('span');
-                    channelBadge.className = 'channel-badge';
-                    const pieces = currentChannel.split("/");
-                    channelBadge.textContent = pieces[pieces.length - 1];
-                    nameElement.appendChild(channelBadge);
-                }
-
-                const descElement = document.createElement('p');
-                descElement.textContent = tool.description;
-
-                const schemaElement = document.createElement('pre');
-                schemaElement.textContent = JSON.stringify(tool.inputSchema.properties, null,  2);
-
-                toolElement.appendChild(nameElement);
-                toolElement.appendChild(descElement);
-                toolElement.appendChild(schemaElement);
-                toolsContainer.appendChild(toolElement);
-            });
-        }
-
-        // Register some default tools
-        function registerDefaultTools() {
-            registerTool('calculator', 'Performs basic math operations', {
-                a: { type: "number" },
-                b: { type: "number" },
-                operation: {
-                    type: "string",
-                    enum: ["add", "subtract", "multiply", "divide"]
-                }
-            }, executeCalculator);
-            registerTool('echo', 'Echoes back the input message', { message: { type: "string" } });
-            registerTool('weather', 'Provides weather information for a location', { location: { type: "string" } }, getWeatherInfo);
-        }
-
-        // Event listeners
-        connectBtn.addEventListener('click', async () => {
-            await connectToServer();
-            setupSocketListeners();
+            );
+            alert('Weather tool registered!');
         });
 
-        disconnectBtn.addEventListener('click', () => {
-            if (socket) {
-                socket.close();
-            }
+        // Time tool registration
+        document.getElementById('register-time').addEventListener('click', function() {
+            mcp.registerTool(
+                'time',
+                'Get current time for a timezone',
+                {
+                    timezone: {
+                        type: "string",
+                        enum: ["UTC", "EST", "PST", "local"]
+                    }
+                },
+                function(args) {
+                    const now = new Date();
+                    let timeStr;
+
+                    switch(args.timezone) {
+                        case 'UTC':
+                            timeStr = now.toUTCString();
+                            break;
+                        case 'EST':
+                            timeStr = now.toLocaleString('en-US', { timeZone: 'America/New_York' });
+                            break;
+                        case 'PST':
+                            timeStr = now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
+                            break;
+                        case 'local':
+                        default:
+                            timeStr = now.toLocaleString();
+                            break;
+                    }
+
+                    return `Current time (${args.timezone}): ${timeStr}`;
+                }
+            );
+            alert('Time tool registered!');
         });
-
-        registerToolBtn.addEventListener('click', () => {
-            const name = toolNameInput.value.trim();
-            const description = toolDescriptionInput.value.trim();
-            const schema = toolSchemaInput.value.trim();
-
-            registerTool(name, description, schema);
-
-            toolNameInput.value = '';
-            toolDescriptionInput.value = '';
-            toolSchemaInput.value = '';
-        });
-
-        // Auto-connect on page load (optional)
-        // window.addEventListener('load', connectToServer);
     </script>
 </body>
 </html>
