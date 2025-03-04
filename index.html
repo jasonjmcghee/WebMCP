@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSocket Client</title>
+    <title>MCP WebSocket Client</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,180 +11,498 @@
             margin: 0 auto;
             padding: 20px;
         }
-        #log {
-            height: 300px;
-            border: 1px solid #ccc;
-            margin: 10px 0;
+        #connection-status {
             padding: 10px;
-            overflow-y: auto;
-            background-color: #f9f9f9;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .connecting {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        #log-container {
+            height: 300px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        #tools-container {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .tool-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
         }
         button {
-            margin: 5px;
-            padding: 8px 16px;
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
         }
-        .status {
-            font-weight: bold;
-            margin-bottom: 10px;
+        button:hover {
+            background-color: #0069d9;
         }
-        .disconnected { color: red; }
-        .connected { color: green; }
-        .connecting { color: orange; }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 200px;
+        }
+        .channel-badge {
+            background-color: #17a2b8;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
-    <h1>WebSocket Client</h1>
-    <div class="status disconnected" id="status">Disconnected</div>
-    
-    <button id="connect">Connect</button>
-    <button id="disconnect">Disconnect</button>
-    <button id="send">Send Ping</button>
-    
-    <div id="log"></div>
-    
+    <h1>MCP WebSocket Client</h1>
+
+    <div id="connection-status" class="disconnected">
+        Disconnected
+    </div>
+
+    <div class="form-group">
+        <label for="channel-name">Channel Path:</label>
+        <input type="text" id="channel-name" placeholder="/mypage1" value="/page1">
+    </div>
+
+    <button id="connect-btn">Connect</button>
+    <button id="disconnect-btn" disabled>Disconnect</button>
+
+    <h2>Log</h2>
+    <div id="log-container"></div>
+
+    <h2>Available Tools</h2>
+    <div id="tools-container">
+        <p>No tools registered yet.</p>
+    </div>
+
+    <h2>Custom Tool Definition</h2>
+    <div>
+        <div class="form-group">
+            <label for="tool-name">Tool Name:</label>
+            <input type="text" id="tool-name" placeholder="calculator">
+        </div>
+
+        <div class="form-group">
+            <label for="tool-description">Tool Description:</label>
+            <input type="text" id="tool-description" placeholder="Performs calculations">
+        </div>
+
+        <div class="form-group">
+            <label for="tool-schema">Tool Schema:</label>
+            <textarea id="tool-schema" placeholder="{ type: string }"></textarea>
+        </div>
+
+        <button id="register-tool-btn" disabled>Register Tool</button>
+    </div>
+
     <script>
-        // Configuration
-        const SERVER_URL = 'ws://localhost:4797';
-        const MAX_RECONNECT_ATTEMPTS = 5;
-        const RECONNECT_INTERVAL = 3000; // 3 seconds
-        
-        // Elements
-        const statusEl = document.getElementById('status');
-        const logEl = document.getElementById('log');
-        const connectBtn = document.getElementById('connect');
-        const disconnectBtn = document.getElementById('disconnect');
-        const sendBtn = document.getElementById('send');
-        
-        // WebSocket and state variables
+        // Global variables
         let socket = null;
-        let reconnectAttempts = 0;
-        let reconnectTimeout = null;
-        let messageId = 0;
-        let pendingPings = {};
-        
-        // Logging function
+        let isConnected = false;
+        let isRegistered = false;
+        let currentChannel = '';
+        const availableTools = new Map();
+        const pendingRequests = new Map();
+
+        // DOM elements
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const connectionStatus = document.getElementById('connection-status');
+        const logContainer = document.getElementById('log-container');
+        const toolsContainer = document.getElementById('tools-container');
+        const toolNameInput = document.getElementById('tool-name');
+        const toolDescriptionInput = document.getElementById('tool-description');
+        const toolSchemaInput = document.getElementById('tool-schema');
+        const registerToolBtn = document.getElementById('register-tool-btn');
+        const channelNameInput = document.getElementById('channel-name');
+
+        // Helper function to log messages
         function log(message, type = 'info') {
-            const entry = document.createElement('div');
-            entry.className = type;
-            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            logEl.appendChild(entry);
-            logEl.scrollTop = logEl.scrollHeight;
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+
+            if (type === 'error') {
+                logEntry.style.color = '#dc3545';
+            } else if (type === 'success') {
+                logEntry.style.color = '#28a745';
+            } else if (type === 'warning') {
+                logEntry.style.color = '#ffc107';
+            }
+
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
         }
-        
-        // Update status display
-        function updateStatus(state) {
-            statusEl.textContent = state;
-            statusEl.className = `status ${state.toLowerCase()}`;
-        }
-        
-        // Connect to WebSocket server with retry logic
-        function connectWebSocket() {
-            if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
-                log('Already connected or connecting');
+
+        // Connect to WebSocket server
+        function connectToServer() {
+            const channelPath = channelNameInput.value.trim();
+
+            if (!channelPath) {
+                log('Please specify a channel path', 'error');
                 return;
             }
-            
-            updateStatus('Connecting');
-            log(`Connecting to ${SERVER_URL}...`);
-            
-            // Create new WebSocket connection
-            socket = new WebSocket(SERVER_URL);
-            
-            socket.onopen = () => {
-                updateStatus('Connected');
-                log('Connection established!', 'success');
-                reconnectAttempts = 0;
-                clearTimeout(reconnectTimeout);
-            };
-            
-            socket.onmessage = (event) => {
+
+            // Ensure path starts with /
+            const path = channelPath.startsWith('/') ? channelPath : `/${channelPath}`;
+
+            // Connect directly to the path
+            const serverUrl = `ws://localhost:4797${path}`;
+
+            // Update UI
+            connectionStatus.textContent = 'Connecting...';
+            connectionStatus.className = 'connecting';
+            connectBtn.disabled = true;
+            channelNameInput.disabled = true;
+
+            log(`Connecting to ${serverUrl}...`);
+
+            // Create WebSocket connection with the path
+            socket = new WebSocket(serverUrl);
+
+            // Connection opened
+            socket.addEventListener('open', (event) => {
+                isConnected = true;
+                connectionStatus.textContent = `Connected to ${path}`;
+                connectionStatus.className = 'connected';
+
+                log('Connection established', 'success');
+
+                // We're already connected to the path, so mark as registered
+                isRegistered = true;
+                currentChannel = path;
+                disconnectBtn.disabled = false;
+                registerToolBtn.disabled = false;
+            });
+
+            // Listen for messages
+            socket.addEventListener('message', (event) => {
                 try {
-                    const data = JSON.parse(event.data);
-                    
-                    // Handle different message types
-                    if (data.type === 'pong' && pendingPings[data.id]) {
-                        const latency = Date.now() - pendingPings[data.id];
-                        log(`Received pong for message ${data.id} (latency: ${latency}ms)`, 'success');
-                        delete pendingPings[data.id];
-                    } else {
-                        log(`Received: ${event.data}`);
-                    }
+                    const message = JSON.parse(event.data);
+                    log(`Received: ${message.type}`);
+
+                    handleServerMessage(message);
                 } catch (error) {
                     log(`Error parsing message: ${error.message}`, 'error');
                 }
-            };
-            
-            socket.onclose = (event) => {
-                updateStatus('Disconnected');
-                if (event.wasClean) {
-                    log(`Connection closed cleanly, code=${event.code}, reason=${event.reason}`);
-                } else {
-                    log('Connection died', 'error');
-                    
-                    // Attempt to reconnect if not manually disconnected
-                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                        reconnectAttempts++;
-                        log(`Attempting to reconnect (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`, 'warning');
-                        reconnectTimeout = setTimeout(connectWebSocket, RECONNECT_INTERVAL);
-                    } else {
-                        log('Maximum reconnection attempts reached', 'error');
-                    }
-                }
-            };
-            
-            socket.onerror = (error) => {
+            });
+
+            // Connection closed
+            socket.addEventListener('close', (event) => {
+                isConnected = false;
+                isRegistered = false;
+                currentChannel = '';
+                connectionStatus.textContent = 'Disconnected';
+                connectionStatus.className = 'disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                registerToolBtn.disabled = true;
+                channelNameInput.disabled = false;
+
+                log(`Connection closed: ${event.code} ${event.reason}`, 'warning');
+            });
+
+            // Connection error
+            socket.addEventListener('error', (event) => {
                 log('WebSocket error', 'error');
-                console.error('WebSocket error:', error);
-            };
+
+                // The error event doesn't provide error details
+                if (isConnected) {
+                    log('Connection error occurred', 'warning');
+                }
+            });
         }
-        
-        // Disconnect from WebSocket server
-        function disconnectWebSocket() {
-            if (!socket) {
-                log('Not connected');
+
+        // Handle messages from the server
+        function handleServerMessage(message) {
+            switch (message.type) {
+                case 'welcome':
+                    log(`Server says: ${message.message}`, 'success');
+
+                    // Welcome message contains the channel info, register tools
+                    registerDefaultTools();
+                    break;
+
+                case 'toolRegistered':
+                    log(`Tool registered with server: ${message.name}`, 'success');
+                    break;
+
+                case 'callTool':
+                    // Server is asking us to execute a tool
+                    handleToolCall(message);
+                    break;
+
+                case 'listTools':
+                    // Server is asking for available tools
+                    sendToolsList(message.id);
+                    break;
+
+                case 'ping':
+                    // Respond to ping
+                    sendMessage({
+                        type: 'pong',
+                        id: message.id,
+                        timestamp: Date.now()
+                    });
+                    break;
+
+                case 'error':
+                    log(`Server error: ${message.message}`, 'error');
+                    break;
+
+                default:
+                    log(`Unknown message type: ${message.type}`, 'warning');
+                    break;
+            }
+        }
+
+        // Handle tool call from server
+        function handleToolCall(message) {
+            const { id, tool, arguments: args } = message;
+
+            log(`Tool call: ${tool} with args: ${JSON.stringify(args)}`);
+
+            if (!availableTools.has(tool)) {
+                sendMessage({
+                    id,
+                    type: 'toolResponse',
+                    error: `Tool not found: ${tool}`
+                });
                 return;
             }
-            
-            clearTimeout(reconnectTimeout);
-            reconnectAttempts = MAX_RECONNECT_ATTEMPTS; // Prevent auto-reconnect
-            
-            if (socket.readyState === WebSocket.OPEN) {
-                socket.close();
-                log('Disconnected from server');
+
+            // Execute the tool
+            try {
+                const toolFn = availableTools.get(tool).execute;
+
+                // For this demo, we'll support a few basic tools
+                let result;
+
+                if (tool === 'calculator') {
+                    result = `${executeCalculator(args)}`;
+                } else if (tool === 'echo') {
+                    result = args.message;
+                } else if (tool === 'weather') {
+                    result = getWeatherInfo(args);
+                } else {
+                    // For any other tool, we'll just return the arguments
+                    result = `Tool executed: ${tool} with args: ${JSON.stringify(args)}`;
+                }
+
+                // Send the response
+                sendMessage({
+                    id,
+                    type: 'toolResponse',
+                    result
+                });
+
+                log(`Tool response sent for ${tool}`, 'success');
+            } catch (error) {
+                sendMessage({
+                    id,
+                    type: 'toolResponse',
+                    error: error.message
+                });
+                log(`Tool execution error: ${error.message}`, 'error');
             }
         }
-        
-        // Send ping message
-        function sendPing() {
-            if (!socket || socket.readyState !== WebSocket.OPEN) {
-                log('Not connected to server', 'error');
+
+        // Sample tool implementations
+        function executeCalculator(args) {
+            const { operation, a, b } = args;
+
+            switch (operation) {
+                case 'add':
+                    return a + b;
+                case 'subtract':
+                    return a - b;
+                case 'multiply':
+                    return a * b;
+                case 'divide':
+                    if (b === 0) throw new Error('Division by zero');
+                    return a / b;
+                default:
+                    throw new Error(`Unknown operation: ${operation}`);
+            }
+        }
+
+        function getWeatherInfo({ location }) {
+            // In a real implementation, you would call a weather API
+            return `Weather for ${location}: Sunny, 22°C`;
+        }
+
+        // Send available tools list
+        function sendToolsList(requestId) {
+            const toolsList = Array.from(availableTools.values()).map(tool => ({
+                name: tool.name,
+                description: tool.description,
+                inputSchema: tool.inputSchema,
+            }));
+
+            sendMessage({
+                id: requestId,
+                type: 'listToolsResponse',
+                tools: toolsList
+            });
+
+            log(`Sent tools list: ${toolsList.length} tools`, 'success');
+        }
+
+        // Send a message to the server
+        function sendMessage(message) {
+            if (!isConnected) {
+                log('Cannot send message: not connected', 'error');
                 return;
             }
-            
-            const id = messageId++;
-            const message = {
-                type: 'ping',
-                id: id,
-                timestamp: Date.now()
-            };
-            
-            pendingPings[id] = Date.now();
-            socket.send(JSON.stringify(message));
-            log(`Sent ping (id: ${id})`);
+
+            try {
+                socket.send(JSON.stringify(message));
+            } catch (error) {
+                log(`Error sending message: ${error.message}`, 'error');
+            }
         }
-        
+
+        // Register a new tool
+        function registerTool(name, description, schema, executeFn) {
+            if (!name) {
+                log('Tool name is required', 'error');
+                return;
+            }
+
+            // Add the tool to local registry
+            availableTools.set(name, {
+                name,
+                description: description || `Tool: ${name}`,
+                execute: executeFn || function(args) {
+                    return `Default implementation of ${name} with args: ${JSON.stringify(args)}`;
+                },
+                inputSchema: {
+                    type: "object",
+                    properties: schema,
+                }
+            });
+
+            // Register the tool with the server
+            if (isRegistered) {
+                sendMessage({
+                    type: 'registerTool',
+                    name,
+                    description: description || `Tool: ${name}`,
+                    inputSchema: {
+                        type: "object",
+                        properties: schema
+                    },
+                });
+
+                log(`Registering tool with server: ${name}`);
+            }
+
+            updateToolsDisplay();
+            log(`Tool added locally: ${name}`, 'success');
+        }
+
+        // Update the tools display
+        function updateToolsDisplay() {
+            toolsContainer.innerHTML = '';
+
+            if (availableTools.size === 0) {
+                toolsContainer.innerHTML = '<p>No tools registered yet.</p>';
+                return;
+            }
+
+            availableTools.forEach((tool, name) => {
+                const toolElement = document.createElement('div');
+                toolElement.className = 'tool-item';
+
+                const nameElement = document.createElement('strong');
+                nameElement.textContent = name;
+
+                // Add channel badge
+                if (currentChannel) {
+                    const channelBadge = document.createElement('span');
+                    channelBadge.className = 'channel-badge';
+                    channelBadge.textContent = currentChannel;
+                    nameElement.appendChild(channelBadge);
+                }
+
+                const descElement = document.createElement('p');
+                descElement.textContent = tool.description;
+
+                const schemaElement = document.createElement('pre');
+                schemaElement.textContent = JSON.stringify(tool.inputSchema.properties, null,  2);
+
+                toolElement.appendChild(nameElement);
+                toolElement.appendChild(descElement);
+                toolElement.appendChild(schemaElement);
+                toolsContainer.appendChild(toolElement);
+            });
+        }
+
+        // Register some default tools
+        function registerDefaultTools() {
+            registerTool('calculator', 'Performs basic math operations', {
+                a: { type: "number" },
+                b: { type: "number" },
+                operation: {
+                    type: "string",
+                    enum: ["add", "subtract", "multiply", "divide"]
+                }
+            }, executeCalculator);
+            registerTool('echo', 'Echoes back the input message', { message: { type: "string" } });
+            registerTool('weather', 'Provides weather information for a location', { location: { type: "string" } }, getWeatherInfo);
+        }
+
         // Event listeners
-        connectBtn.addEventListener('click', () => {
-            reconnectAttempts = 0;
-            connectWebSocket();
+        connectBtn.addEventListener('click', connectToServer);
+
+        disconnectBtn.addEventListener('click', () => {
+            if (socket) {
+                socket.close();
+            }
         });
-        
-        disconnectBtn.addEventListener('click', disconnectWebSocket);
-        
-        sendBtn.addEventListener('click', sendPing);
-        
-        // Initial log entry
-        log('WebSocket client initialized, click "Connect" to start');
+
+        registerToolBtn.addEventListener('click', () => {
+            const name = toolNameInput.value.trim();
+            const description = toolDescriptionInput.value.trim();
+            const schema = toolSchemaInput.value.trim();
+
+            registerTool(name, description, schema);
+
+            toolNameInput.value = '';
+            toolDescriptionInput.value = '';
+            toolSchemaInput.value = '';
+        });
+
+        // Auto-connect on page load (optional)
+        // window.addEventListener('load', connectToServer);
     </script>
 </body>
 </html>
