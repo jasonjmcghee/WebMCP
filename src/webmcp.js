@@ -780,6 +780,7 @@ class WebMCP {
             regSocket.addEventListener('error', (event) => {
                 console.error('Registration connection error');
                 this._updateStatus('disconnected', 'Registration connection error');
+                sessionStorage.removeItem(this.SESSION_STORAGE_KEY);
                 reject(new Error('Connection error'));
             });
 
@@ -790,6 +791,7 @@ class WebMCP {
                 if (event.code !== 1000) {
                     // If it wasn't a normal closure, show an error
                     this._updateStatus('disconnected', 'Registration failed');
+                    sessionStorage.removeItem(this.SESSION_STORAGE_KEY);
                     reject(new Error('Connection closed'));
                 }
             });
@@ -841,6 +843,8 @@ class WebMCP {
             } else {
                 this._updateStatus('disconnected', 'Connection failed');
             }
+
+            sessionStorage.removeItem(this.SESSION_STORAGE_KEY);
         });
 
         // Set up socket message handler
