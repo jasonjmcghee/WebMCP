@@ -1,22 +1,31 @@
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as crypto from 'crypto';
+import * as dotenv from 'dotenv';
+import * as os from 'os';
 import {WebSocketServer} from 'ws';
 import {createServer} from 'http';
 import {parse} from 'url';
-import fs from 'fs/promises';
 import {fork} from 'child_process';
-import path from 'path';
-import crypto from 'crypto';
-import dotenv from 'dotenv';
-import {fileURLToPath} from 'url';
 
-// Get directory name for current module
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Create config directory in user's home folder
+const CONFIG_DIR = path.join(os.homedir(), '.webmcp');
+
+// Ensure config directory exists
+const ensureConfigDir = async () => {
+    try {
+        await fs.mkdir(CONFIG_DIR, { recursive: true });
+    } catch (error) {
+        console.error(`Error creating config directory at ${CONFIG_DIR}:`, error);
+    }
+};
 
 // Process ID file path
-const PID_FILE = path.join(__dirname, '..', '.webmcp-server.pid');
+const PID_FILE = path.join(CONFIG_DIR, '.webmcp-server.pid');
 // Environment file path
-const ENV_FILE = path.join(__dirname, '..', '.env');
+const ENV_FILE = path.join(CONFIG_DIR, '.env');
 // Tokens file path
-const TOKENS_FILE = path.join(__dirname, '..', '.webmcp-tokens.json');
+const TOKENS_FILE = path.join(CONFIG_DIR, '.webmcp-tokens.json');
 
 const HOST = "localhost";
 // Updated later...
@@ -1376,6 +1385,9 @@ Use --clean to remove all authorized tokens when you want to start fresh.
 };
 
 const main = async () => {
+    // Ensure the config directory exists
+    await ensureConfigDir();
+
     // Load authorized tokens from disk
     await loadAuthorizedTokens();
 
@@ -1458,7 +1470,7 @@ const main = async () => {
         console.log('No server token found, generating a new one...');
         serverToken = generateToken();
         await saveServerTokenToEnv(serverToken);
-        console.log(`New server token generated and saved to .env`);
+        console.log(`New server token: "${serverToken}". Saved to .env`);
     }
 
     // Daemonize if requested
