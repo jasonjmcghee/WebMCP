@@ -93,12 +93,23 @@
     <p>WebMCP is a JavaScript library that allows any website to integrate with the Model Context Protocol.
         It provides a small widget in the corner of your page that allows users to interact with your webpage via LLM or
         agent.</p>
-    <p>The widget appears as a small blue square in the bottom right corner. Click it to expand and connect using a
+    <p>The widget appears as a small blue square in the bottom right corner. Click it to begin, and connect using a
         token. Please read the <a href="https://github.com/jasonjmcghee/WebMCP">README</a> to learn how!</p>
 </div>
 
 <div class="demo-section">
-    <h2>Getting Started</h2>
+    <h2>Connect to this site (or any site that uses WebMCP)</h2>
+    <p>To use the WebMCP features on a website, you need to:</p>
+    <ol>
+        <li>Start the WebMCP server: <code>npx @jason.today/webmcp</code></li>
+        <li>Generate a connection token: <code>npx @jason.today/webmcp --new</code></li>
+        <li>Click the blue square in the corner and paste the token</li>
+        <li>Start your MCP client, like <a href="https://claude.ai/download">Claude Desktop</a>.</li>
+    </ol>
+</div>
+
+<div class="demo-section">
+    <h2>Getting Started (for website developers)</h2>
     <p>To use WebMCP, simply include the script on your page:</p>
     <pre><code>&lt;script src="webmcp.js"&gt;&lt;/script&gt;</code></pre>
     <p>The WebMCP widget will automatically initialize and appear in the bottom right corner of your page.</p>
@@ -276,17 +287,6 @@ mcp.registerResource(
         <p>Click the button below to simulate a sampling request (this would normally come from the server):</p>
         <button id="simulate-sampling">Simulate Sampling Request</button>
     </div>
-</div>
-
-<div class="demo-section">
-    <h2>Connect to WebMCP Server</h2>
-    <p>To use WebMCP with a model, you need to:</p>
-    <ol>
-        <li>Start the WebMCP server: <code>npx @jason.today/webmcp</code></li>
-        <li>Generate a connection token: <code>npx @jason.today/webmcp --new</code></li>
-        <li>Click the blue square in the corner and paste the token</li>
-        <li>Start your MCP client, like <a href="https://claude.ai/download">Claude Desktop</a>.</li>
-    </ol>
 </div>
 
 <!-- Data for user resource demo -->

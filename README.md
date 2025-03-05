@@ -1,14 +1,29 @@
 # WebMCP
 
+First-class LLM support for websites in a javascript snippet
+
 ![NPM Version](https://img.shields.io/npm/v/%40jason.today%2Fwebmcp) ![MIT licensed](https://img.shields.io/npm/l/%40jason.today%2Fwebmcp)
 
-WebMCP allows websites to share tools, resources, prompts, etc. to LLMs. In other words, WebMCP allows a website to be  an MCP server.
+WebMCP allows websites to share tools, resources, prompts, etc. to LLMs. In other words, WebMCP allows a website to be  an MCP server. No sharing API Keys. Use any model you want.
 
 It comes in the form of a widget that a website owner can put on their site and give client-side LLMs what they need to provide a great UX for the user or agent.
 
 To initiate a connection, the user generates a token with an unique identifier and connection information and provides it to the input in the widget. The widget then talks to the locally hosted websocket using that information and the server validates the information and establishes a connection. If the user navigates away, they have a grace period to reconnect without needing to reauthenticate (especially useful for multi-page apps / navigation).
 
-## Getting started (end-user / Client-side / your computer / LLM)
+_The look, feel, how it's used, and security are all absolutely open for contribution / constructive criticism._
+
+## Getting started (add WebMCP to your website)
+
+To use WebMCP, simply include [`webmcp.js`](https://github.com/jasonjmcghee/WebMCP/releases) on your page (via src or directly):
+
+```
+<script src="webmcp.js"></script>
+```
+
+The WebMCP widget will automatically initialize and appear in the bottom right corner of your page.
+
+
+## Getting started (your LLM + websites using WebMCP)
 
 Install + start the server (it's a daemon, so you can start it anywhere)
 
@@ -38,16 +53,6 @@ npx @jason.today/webmcp --help
 ```
 
 All configuration files (tokens, `.env`, server PID) are now stored in `~/.webmcp` directory, making it easy to maintain state between sessions. The MCP server file is also copied to this directory during installation, so you can reference it directly in your MCP client configuration.
-
-## Getting started (Website developer)
-
-To use WebMCP, simply include [`webmcp.js`](https://github.com/jasonjmcghee/WebMCP/releases) on your page (via src or directly):
-
-```
-<script src="webmcp.js"></script>
-```
-
-The WebMCP widget will automatically initialize and appear in the bottom right corner of your page.
 
 ## How It Works
 
