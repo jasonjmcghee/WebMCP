@@ -4,9 +4,12 @@
   "description": "WebSocket-based Model Context Protocol implementation",
   "main": "src/websocket-server.js",
   "bin": {
-    "webmcp": "./build/index.js"
+    "webmcp": "build/index.js"
   },
-  "repository": "https://github.com/jasonjmcghee/webmcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jasonjmcghee/webmcp.git"
+  },
   "author": "Jason McGhee",
   "scripts": {
     "start-ws-server": "node src/websocket-server.js",
