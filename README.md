@@ -6,6 +6,8 @@ A proposal and code for websites to support client side LLMs
 
 WebMCP allows websites to share tools, resources, prompts, etc. to LLMs. In other words, WebMCP allows a website to be  an MCP server. No sharing API Keys. Use any model you want.
 
+[Here's a simple website I built that is WebMCP-enabled](https://webmcp.jason.today)
+
 It comes in the form of a widget that a website owner can put on their site and give client-side LLMs what they need to provide a great UX for the user or agent.
 
 To initiate a connection, the user generates a token with an unique identifier and connection information and provides it to the input in the widget. The widget then talks to the locally hosted websocket using that information and the server validates the information and establishes a connection. If the user navigates away, they have a grace period to reconnect without needing to reauthenticate (especially useful for multi-page apps / navigation).
