@@ -41,9 +41,9 @@ Install + start the server (it's a daemon, so you can start it anywhere)
 npx @jason.today/webmcp
 ```
 
-The first time this happens, it will initialize a `.env` file in `~/.webmcp` which contains `MCP_SERVER_TOKEN`.
+The first time this happens, it will initialize a `.env` file in `~/.webmcp` which contains `WEBMCP_SERVER_TOKEN`.
 
-Update your MCP client's config to point at `~/.webmcp/server.cjs`. This file is automatically copied to that location during installation. Add `MCP_SERVER_TOKEN` with its value as an environment variable.
+Update your MCP client's config to point at `~/.webmcp/server.cjs`. This file is automatically copied to that location during installation. Add `WEBMCP_SERVER_TOKEN` with its value as an environment variable.
 
 When you're ready to connect to a website, it'll ask you for a token. This is how you generate one.
 (If your server was not running, this will also start it.)
