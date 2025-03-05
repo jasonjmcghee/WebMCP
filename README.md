@@ -53,7 +53,7 @@ For more information on the server, feel free to run:
 node build/index.js --help
 ```
 
-Also, again, single self-contained file. Feel free to move it, rename it, etc.
+Also, again, single self-contained file. Feel free to move it, rename it, etc. Note that it'll lose track of any tokens, the `MCP_SERVER_TOKEN` and the currently running server if you don't move the appropriate files, as these are stored next to the server (this is dumb and should be in `~/.webmcp` or something), but they'll get recreated (you'll need to update mcp client config).
 
 ## How It Works
 
