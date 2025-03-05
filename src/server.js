@@ -25,8 +25,8 @@ if (!serverToken) {
 // Create a central MCP server that communicates over stdio
 const mcpServer = new Server(
     {
-        name: "mcp-server",
-        version: "1.0.0"
+        name: "WebMCP",
+        version: "0.1.3"
     },
     {
         capabilities: {
