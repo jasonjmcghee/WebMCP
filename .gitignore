@@ -3,3 +3,5 @@ node_modules
 .env
 build
 sandbox
+.idea
+.DS_Store
