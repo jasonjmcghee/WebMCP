@@ -581,12 +581,6 @@ mcpServer.setRequestHandler(CreateMessageRequestSchema, async (request) => {
     }
 });
 
-function sleep(ms) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
-}
-
 async function main() {
     try {
         // Connect to the WebSocket server
@@ -603,27 +597,6 @@ async function main() {
     }
 }
 
-// Only try up to 10 times
-const MAX_RETRIES = 10;
-
-// Wait 500ms before each subsequent check
-const TIMEOUT = 500;
-
-// Wait 500ms before first check
-const INITIAL_DELAY = 500;
-
-(async function () {
-    await sleep(INITIAL_DELAY);
-
-    for (let i = 0; i < MAX_RETRIES; i++) {
-        const success = await main();
-        if (success) {
-            break;
-        }
-        await sleep(TIMEOUT);
-    }
-})();
-
 // Handle graceful shutdown
 const shutdownGracefully = (signal) => {
     console.error(`\nReceived ${signal}. Shutting down gracefully...`);
@@ -635,6 +608,10 @@ const shutdownGracefully = (signal) => {
 
     process.exit(0);
 };
+
+(async function() {
+    await main();
+});
 
 // Handle CTRL+C (SIGINT)
 process.on('SIGINT', () => shutdownGracefully('SIGINT'));
