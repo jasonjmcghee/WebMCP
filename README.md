@@ -10,7 +10,7 @@ To initiate a connection, the user generates a token with an unique identifier a
 
 Install + start the server (it's a daemon, so you can start it anywhere)
 
-```shell
+```bash
 npx @jason.today/webmcp
 ```
 
@@ -21,7 +21,7 @@ Update your MCP client's config to point at `~/.webmcp/server.cjs`. This file is
 When you're ready to connect to a website, it'll ask you for a token. This is how you generate one.
 (If your server was not running, this will also start it.)
 
-```
+```bash
 npx @jason.today/webmcp --new
 ```
 
@@ -31,7 +31,7 @@ To disconnect, you can close the browser tab, click "disconnect", or shut down t
 
 For more information on the server, feel free to run:
 
-```
+```bash
 npx @jason.today/webmcp --help
 ```
 
