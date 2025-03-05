@@ -11,7 +11,7 @@ To initiate a connection, the user generates a token with an unique identifier a
 Install + start the server (it's a daemon, so you can start it anywhere)
 
 ```shell
-npx webmcp
+npx @jason.today/webmcp
 ```
 
 The first time this happens, it will initialize a `.env` file in `~/.webmcp` which contains `MCP_SERVER_TOKEN`.
@@ -22,7 +22,7 @@ When you're ready to connect to a website, it'll ask you for a token. This is ho
 (If your server was not running, this will also start it.)
 
 ```
-npx webmcp --new
+npx @jason.today/webmcp --new
 ```
 
 Copy the token and paste it to the website's input. As soon as the website registers with it, it cannot be used for subsequent registrations (just generate a new one, when you need to).
@@ -32,7 +32,7 @@ To disconnect, you can close the browser tab, click "disconnect", or shut down t
 For more information on the server, feel free to run:
 
 ```
-npx webmcp --help
+npx @jason.today/webmcp --help
 ```
 
 All configuration files (tokens, `.env`, server PID) are now stored in `~/.webmcp` directory, making it easy to maintain state between sessions. The MCP server file is also copied to this directory during installation, so you can reference it directly in your MCP client configuration.

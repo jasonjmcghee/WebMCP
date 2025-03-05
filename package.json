@@ -1,5 +1,5 @@
 {
-  "name": "webmcp",
+  "name": "@jason.today/webmcp",
   "version": "0.1.0",
   "description": "WebSocket-based Model Context Protocol implementation",
   "main": "index.js",
