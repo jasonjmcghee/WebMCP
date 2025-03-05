@@ -8,7 +8,7 @@ It comes in the form of a widget that a website owner can put on their site and 
 
 To initiate a connection, the user generates a token with an unique identifier and connection information and provides it to the input in the widget. The widget then talks to the locally hosted websocket using that information and the server validates the information and establishes a connection. If the user navigates away, they have a grace period to reconnect without needing to reauthenticate (especially useful for multi-page apps / navigation).
 
-## Getting started
+## Getting started (end-user / Client-side / your computer / LLM)
 
 Install + start the server (it's a daemon, so you can start it anywhere)
 
@@ -38,6 +38,16 @@ npx @jason.today/webmcp --help
 ```
 
 All configuration files (tokens, `.env`, server PID) are now stored in `~/.webmcp` directory, making it easy to maintain state between sessions. The MCP server file is also copied to this directory during installation, so you can reference it directly in your MCP client configuration.
+
+## Getting started (Website developer)
+
+To use WebMCP, simply include [`webmcp.js`](https://github.com/jasonjmcghee/WebMCP/releases) on your page (via src or directly):
+
+```
+<script src="webmcp.js"></script>
+```
+
+The WebMCP widget will automatically initialize and appear in the bottom right corner of your page.
 
 ## How It Works
 
