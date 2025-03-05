@@ -183,14 +183,7 @@ mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
 
         // Wait for the response
-        const response = await responsePromise;
-
-        return {
-            content: [{
-                type: "text",
-                text: Array.isArray(response) ? response.join("\n") : response
-            }]
-        };
+        return await responsePromise;
     } catch (error) {
         return {
             content: [{

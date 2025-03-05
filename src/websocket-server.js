@@ -79,7 +79,7 @@ async function loadAuthorizedTokens() {
         const data = await fs.readFile(TOKENS_FILE, 'utf8');
         authorizedTokens = JSON.parse(data || "{}");
 
-        console.error(`Loaded ${Object.keys(authorizedTokens).length} authorized channel-token pairs from ${TOKENS_FILE}`);
+        // console.error(`Loaded ${Object.keys(authorizedTokens).length} authorized channel-token pairs from ${TOKENS_FILE}`);
         return true;
     } catch (error) {
         // If file doesn't exist, start with empty tokens
@@ -98,7 +98,7 @@ async function saveAuthorizedTokens() {
         // Convert Map to object for JSON serialization
         const stringified = JSON.stringify(authorizedTokens, null, 2);
         await fs.writeFile(TOKENS_FILE, stringified, 'utf8');
-        console.error(`Saved ${stringified} authorized channel-token pairs to ${TOKENS_FILE}`);
+        // console.error(`Saved ${stringified} authorized channel-token pairs to ${TOKENS_FILE}`);
         return true;
     } catch (error) {
         console.error('Error saving authorized tokens:', error);

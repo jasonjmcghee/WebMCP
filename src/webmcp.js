@@ -1050,9 +1050,9 @@ class WebMCP {
             execute: executeFn || function (args) {
                 return `Default implementation of ${name} with args: ${JSON.stringify(args)}`;
             },
-            inputSchema: {
+            inputSchema: schema || {
                 type: "object",
-                properties: schema || {}
+                properties: {}
             }
         });
 
@@ -1062,9 +1062,9 @@ class WebMCP {
                 type: 'registerTool',
                 name,
                 description: description || `Tool: ${name}`,
-                inputSchema: {
+                inputSchema: schema || {
                     type: "object",
-                    properties: schema || {}
+                    properties: {}
                 },
             });
 
@@ -1074,56 +1074,6 @@ class WebMCP {
         // Update tools display
         this._updateToolsList();
         console.log(`Tool registered: ${name}`);
-    }
-
-}
-
-// Auto-initialize if script is loaded directly (not as a module)
-if (typeof module === 'undefined') {
-    window.webMCP = new WebMCP();
-
-    // Register some default tools for demo purposes
-    if (window.webMCP) {
-        // Calculator tool
-        window.webMCP.registerTool(
-            'calculator',
-            'Performs basic math operations',
-            {
-                a: {type: "number"},
-                b: {type: "number"},
-                operation: {
-                    type: "string",
-                    enum: ["add", "subtract", "multiply", "divide"]
-                }
-            },
-            function (args) {
-                const {operation, a, b} = args;
-
-                switch (operation) {
-                    case 'add':
-                        return a + b;
-                    case 'subtract':
-                        return a - b;
-                    case 'multiply':
-                        return a * b;
-                    case 'divide':
-                        if (b === 0) throw new Error('Division by zero');
-                        return a / b;
-                    default:
-                        throw new Error(`Unknown operation: ${operation}`);
-                }
-            }
-        );
-
-        // Echo tool
-        window.webMCP.registerTool(
-            'echo',
-            'Echoes back the input message',
-            {message: {type: "string"}},
-            function (args) {
-                return args.message;
-            }
-        );
     }
 }
 

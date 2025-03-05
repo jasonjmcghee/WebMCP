@@ -113,7 +113,74 @@ mcp.registerTool(
     <!-- Demo script -->
     <script>
         // Get reference to WebMCP instance (automatically created)
+        window.webMCP = new WebMCP();
         const mcp = window.webMCP;
+
+        // Register some default tools for demo purposes
+        if (mcp) {
+            // Calculator tool
+            mcp.registerTool(
+                'calculator',
+                'Performs basic math operations',
+                {
+                    type: "object",
+                    properties: {
+                        a: {type: "number"},
+                        b: {type: "number"},
+                        operation: {
+                            type: "string",
+                            enum: ["add", "subtract", "multiply", "divide"]
+                        }
+                    }
+                },
+                // Execute, then convert it to a string.
+                (args) => {
+                    const output = ((function (args) {
+                        const {operation, a, b} = args;
+
+                        switch (operation) {
+                            case 'add':
+                                return a + b;
+                            case 'subtract':
+                                return a - b;
+                            case 'multiply':
+                                return a * b;
+                            case 'divide':
+                                if (b === 0) throw new Error('Division by zero');
+                                return a / b;
+                            default:
+                                throw new Error(`Unknown operation: ${operation}`);
+                        }
+                    })(args));
+                    return {
+                        content: [{
+                            type: "text",
+                            text: output.toString()
+                        }]
+                    }
+                }
+            );
+
+            // Echo tool
+            mcp.registerTool(
+                'echo',
+                'Echoes back the input message',
+                {
+                    type: "object",
+                    properties: {
+                        message: { type: "string" }
+                    }
+                },
+                function (args) {
+                    return {
+                        content: [{
+                            type: "text",
+                            text: args.message
+                        }]
+                    }
+                }
+            );
+        }
 
         // Weather tool registration
         document.getElementById('register-weather').addEventListener('click', function() {
@@ -121,10 +188,18 @@ mcp.registerTool(
                 'weather',
                 'Get weather information for a location',
                 {
-                    location: { type: "string" }
+                    type: "object",
+                    properties: {
+                        location: { type: "string" }
+                    }
                 },
                 function(args) {
-                    return `Weather for ${args.location}: Sunny, 22°C`;
+                    return {
+                        content: [{
+                            type: "text",
+                            text: `Weather for ${args.location}: Sunny, 22°C`,
+                        }]
+                    }
                 }
             );
             alert('Weather tool registered!');
@@ -136,9 +211,12 @@ mcp.registerTool(
                 'time',
                 'Get current time for a timezone',
                 {
-                    timezone: {
-                        type: "string",
-                        enum: ["UTC", "EST", "PST", "local"]
+                    type: "object",
+                    properties: {
+                        timezone: {
+                            type: "string",
+                            enum: ["UTC", "EST", "PST", "local"]
+                        }
                     }
                 },
                 function(args) {
@@ -161,7 +239,12 @@ mcp.registerTool(
                             break;
                     }
 
-                    return `Current time (${args.timezone}): ${timeStr}`;
+                    return {
+                        content: [{
+                            type: "text",
+                            text: `Current time (${args.timezone}): ${timeStr}`
+                        }]
+                    }
                 }
             );
             alert('Time tool registered!');
