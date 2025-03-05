@@ -57,8 +57,10 @@ const channels = {};
 const MCP_PATH = '/mcp';
 const REGISTER_PATH = '/register';
 
-// Track all available tools across all channels
+// Track all available tools, prompts, and resources across all channels
 const toolsRegistry = {};
+const promptsRegistry = {};
+const resourcesRegistry = {};
 
 // Request counter for unique IDs
 let requestIdCounter = 1;
@@ -286,16 +288,56 @@ wss.on('connection', (ws, req) => {
                     handleRegisterTool(ws, clientChannel, data);
                     break;
 
+                case 'registerPrompt':
+                    handleRegisterPrompt(ws, clientChannel, data);
+                    break;
+
+                case 'registerResource':
+                    handleRegisterResource(ws, clientChannel, data);
+                    break;
+
                 case 'listTools':
                     handleListTools(ws, clientChannel, data);
+                    break;
+
+                case 'listPrompts':
+                    handleListPrompts(ws, clientChannel, data);
+                    break;
+
+                case 'listResources':
+                    handleListResources(ws, clientChannel, data);
                     break;
 
                 case 'callTool':
                     handleCallTool(ws, clientChannel, data);
                     break;
 
+                case 'getPrompt':
+                    handleGetPrompt(ws, clientChannel, data);
+                    break;
+
+                case 'readResource':
+                    handleReadResource(ws, clientChannel, data);
+                    break;
+
+                case 'createSamplingMessage':
+                    handleCreateSamplingMessage(ws, clientChannel, data);
+                    break;
+
                 case 'toolResponse':
                     handleToolResponse(data);
+                    break;
+
+                case 'promptResponse':
+                    handlePromptResponse(data);
+                    break;
+
+                case 'resourceResponse':
+                    handleResourceResponse(data);
+                    break;
+
+                case 'samplingResponse':
+                    handleSamplingResponse(data);
                     break;
 
                 default:
@@ -337,17 +379,44 @@ wss.on('connection', (ws, req) => {
                         delete channels[clientChannel];
                         console.error(`Removed empty channel for path: ${clientChannel} after 1 minute inactivity`);
 
-                        // Clean up tools for this channel
-                        const toolsToRemove = [];
+                        // Clean up tools, prompts, and resources for this channel
+                        const itemsToRemove = {
+                            tools: [],
+                            prompts: [],
+                            resources: []
+                        };
+
                         for (const [toolId, toolInfo] of Object.entries(toolsRegistry)) {
                             if (toolInfo.channel === clientChannel) {
-                                toolsToRemove.push(toolId);
+                                itemsToRemove.tools.push(toolId);
                             }
                         }
 
-                        toolsToRemove.forEach(toolId => {
+                        for (const [promptId, promptInfo] of Object.entries(promptsRegistry)) {
+                            if (promptInfo.channel === clientChannel) {
+                                itemsToRemove.prompts.push(promptId);
+                            }
+                        }
+
+                        for (const [resourceId, resourceInfo] of Object.entries(resourcesRegistry)) {
+                            if (resourceInfo.channel === clientChannel) {
+                                itemsToRemove.resources.push(resourceId);
+                            }
+                        }
+
+                        itemsToRemove.tools.forEach(toolId => {
                             delete toolsRegistry[toolId];
                             console.error(`Removed tool: ${toolId} from path: ${clientChannel}`);
+                        });
+
+                        itemsToRemove.prompts.forEach(promptId => {
+                            delete promptsRegistry[promptId];
+                            console.error(`Removed prompt: ${promptId} from path: ${clientChannel}`);
+                        });
+
+                        itemsToRemove.resources.forEach(resourceId => {
+                            delete resourcesRegistry[resourceId];
+                            console.error(`Removed resource: ${resourceId} from path: ${clientChannel}`);
                         });
 
                         // Remove the authorized token for this channel if not MCP
@@ -420,6 +489,75 @@ function handleRegisterTool(ws, channelPath, data) {
     console.error(`Tool registered: ${toolId}`);
 }
 
+// Handle prompt registration
+function handleRegisterPrompt(ws, channelPath, data) {
+    const {name, description, arguments: promptArgs} = data;
+
+    if (!name) {
+        ws.send(JSON.stringify({
+            type: 'error',
+            message: 'Prompt name is required'
+        }));
+        return;
+    }
+
+    // Create a unique prompt ID for internal tracking
+    const promptId = `${channelPath.slice(1)}-${name}`;
+
+    // Register the prompt
+    promptsRegistry[promptId] = {
+        channel: channelPath,
+        name,
+        description: description || `Prompt: ${name}`,
+        arguments: promptArgs || [],
+        originalName: name
+    };
+
+    ws.send(JSON.stringify({
+        type: 'promptRegistered',
+        name,
+        promptId
+    }));
+
+    console.error(`Prompt registered: ${promptId}`);
+}
+
+// Handle resource registration
+function handleRegisterResource(ws, channelPath, data) {
+    const {uri, name, description, mimeType, isTemplate, uriTemplate} = data;
+
+    if ((!uri && !uriTemplate) || !name) {
+        ws.send(JSON.stringify({
+            type: 'error',
+            message: 'Resource URI/template and name are required'
+        }));
+        return;
+    }
+
+    // Create a unique resource ID for internal tracking
+    const resourceId = `${channelPath.slice(1)}-${name}`;
+
+    // Register the resource
+    resourcesRegistry[resourceId] = {
+        channel: channelPath,
+        name,
+        description: description || `Resource: ${name}`,
+        uri: uri,
+        uriTemplate: uriTemplate,
+        isTemplate: !!isTemplate,
+        mimeType,
+        originalName: name
+    };
+
+    ws.send(JSON.stringify({
+        type: 'resourceRegistered',
+        name,
+        resourceId
+    }));
+
+    console.error(`Resource registered: ${resourceId}`);
+}
+
 // Handle list tools requests
 function handleListTools(ws, clientChannel, data) {
     const {id} = data;
@@ -457,6 +595,111 @@ function handleListTools(ws, clientChannel, data) {
         id,
         type: 'listToolsResponse',
         tools
+    }));
+}
+
+// Handle list prompts requests
+function handleListPrompts(ws, clientChannel, data) {
+    const {id} = data;
+
+    // Special handling if the request is from the MCP client
+    const isMcpClient = (clientChannel === MCP_PATH);
+
+    let prompts;
+
+    if (isMcpClient) {
+        // For MCP clients, return all prompts across all paths with path prefixes
+        prompts = Object.entries(promptsRegistry).map(([promptId, promptInfo]) => {
+            // Create a path-based fully qualified name - combine path and prompt name
+            const pathBasedName = `${promptInfo.channel.slice(1)}-${promptInfo.originalName}`;
+            return {
+                name: pathBasedName,
+                description: promptInfo.description,
+                arguments: promptInfo.arguments,
+            };
+        });
+        console.error(`Sending all ${prompts.length} prompts to MCP client on path ${clientChannel}`);
+    } else {
+        // For regular clients, return only their own prompts without path prefixes
+        prompts = Object.entries(promptsRegistry)
+            .filter(([_, promptInfo]) => promptInfo.channel === clientChannel)
+            .map(([_, promptInfo]) => ({
+                name: promptInfo.originalName,
+                description: promptInfo.description,
+                arguments: promptInfo.arguments,
+            }));
+        console.error(`Sending ${prompts.length} prompts from path ${clientChannel}`);
+    }
+
+    ws.send(JSON.stringify({
+        id,
+        type: 'listPromptsResponse',
+        prompts
+    }));
+}
+
+// Handle list resources requests
+function handleListResources(ws, clientChannel, data) {
+    const {id} = data;
+
+    // Special handling if the request is from the MCP client
+    const isMcpClient = (clientChannel === MCP_PATH);
+
+    let resources = [];
+    let resourceTemplates = [];
+
+    if (isMcpClient) {
+        // For MCP clients, return all resources across all paths with path prefixes
+        Object.entries(resourcesRegistry).forEach(([resourceId, resourceInfo]) => {
+            // Create a path-based fully qualified name - combine path and resource name
+            const pathBasedName = `${resourceInfo.channel.slice(1)}-${resourceInfo.originalName}`;
+
+            if (resourceInfo.isTemplate) {
+                resourceTemplates.push({
+                    name: pathBasedName,
+                    description: resourceInfo.description,
+                    uriTemplate: resourceInfo.uriTemplate,
+                    mimeType: resourceInfo.mimeType,
+                });
+            } else {
+                resources.push({
+                    name: pathBasedName,
+                    description: resourceInfo.description,
+                    uri: resourceInfo.uri,
+                    mimeType: resourceInfo.mimeType,
+                });
+            }
+        });
+        console.error(`Sending all ${resources.length} resources and ${resourceTemplates.length} templates to MCP client on path ${clientChannel}`);
+    } else {
+        // For regular clients, return only their own resources without path prefixes
+        Object.entries(resourcesRegistry)
+            .filter(([_, resourceInfo]) => resourceInfo.channel === clientChannel)
+            .forEach(([_, resourceInfo]) => {
+                if (resourceInfo.isTemplate) {
+                    resourceTemplates.push({
+                        name: resourceInfo.originalName,
+                        description: resourceInfo.description,
+                        uriTemplate: resourceInfo.uriTemplate,
+                        mimeType: resourceInfo.mimeType,
+                    });
+                } else {
+                    resources.push({
+                        name: resourceInfo.originalName,
+                        description: resourceInfo.description,
+                        uri: resourceInfo.uri,
+                        mimeType: resourceInfo.mimeType,
+                    });
+                }
+            });
+        console.error(`Sending ${resources.length} resources and ${resourceTemplates.length} templates from path ${clientChannel}`);
+    }
+
+    ws.send(JSON.stringify({
+        id,
+        type: 'listResourcesResponse',
+        resources,
+        resourceTemplates
     }));
 }
 
@@ -543,6 +786,186 @@ function handleCallTool(ws, callerChannel, data) {
     console.error(`Tool call forwarded: ${toolName} to channel: ${targetChannel}`);
 }
 
+// Handle get prompt requests
+function handleGetPrompt(ws, callerChannel, data) {
+    const {id, name, arguments: args} = data;
+
+    // Special handling if the caller is on the MCP path
+    const isMcpClient = (callerChannel === MCP_PATH);
+
+    // If the caller is MCP, the prompt name might include a path prefix
+    let targetChannel;
+    let promptName;
+
+    if (isMcpClient && name.startsWith('/')) {
+        // Extract the path and prompt name from the fully qualified name
+        [targetChannel, promptName] = name.slice(1).split("-").slice(1);
+        targetChannel = `/${targetChannel}`;
+    } else {
+        // Check if the prompt exists in the registry
+        const promptInfo = Object.values(promptsRegistry).find(p =>
+            p.channel === callerChannel && p.originalName === name);
+
+        if (!promptInfo) {
+            ws.send(JSON.stringify({
+                id,
+                type: 'promptResponse',
+                error: `Prompt not found: ${name}`
+            }));
+            return;
+        }
+
+        targetChannel = promptInfo.channel;
+        promptName = promptInfo.originalName;
+    }
+
+    // Get the target channel
+    if (!channels[targetChannel] || channels[targetChannel].size === 0) {
+        ws.send(JSON.stringify({
+            id,
+            type: 'promptResponse',
+            error: `No clients available in channel ${targetChannel} to handle prompt: ${promptName}`
+        }));
+        return;
+    }
+
+    // Pick the first client in the target channel
+    const targetClient = channels[targetChannel].values().next().value;
+
+    // Create a unique request ID for tracking
+    const requestId = (requestIdCounter++).toString();
+
+    // Store the pending request
+    pendingRequests[requestId] = {
+        originalId: id,
+        requesterWs: ws,
+        timestamp: Date.now()
+    };
+
+    // Set up timeout for the request
+    setTimeout(() => {
+        if (pendingRequests[requestId]) {
+            const {requesterWs, originalId} = pendingRequests[requestId];
+            delete pendingRequests[requestId];
+
+            try {
+                requesterWs.send(JSON.stringify({
+                    id: originalId,
+                    type: 'promptResponse',
+                    error: `Prompt request timed out: ${promptName}`
+                }));
+            } catch (error) {
+                console.error('Error sending timeout response:', error);
+            }
+        }
+    }, 30000); // 30 second timeout
+
+    // Send the request to the target client
+    targetClient.send(JSON.stringify({
+        id: requestId,
+        type: 'getPrompt',
+        name: promptName,
+        arguments: args
+    }));
+
+    console.error(`Prompt request forwarded: ${promptName} to channel: ${targetChannel}`);
+}
+
+// Handle read resource requests
+function handleReadResource(ws, callerChannel, data) {
+    const {id, uri} = data;
+
+    // Special handling if the caller is on the MCP path
+    const isMcpClient = (callerChannel === MCP_PATH);
+
+    // Find the resource that matches this URI
+    let targetChannel;
+    let resourceName;
+    let resourceInfo;
+
+    // First, try to find an exact match for the URI
+    for (const [resId, info] of Object.entries(resourcesRegistry)) {
+        if (!info.isTemplate && info.uri === uri) {
+            resourceInfo = info;
+            targetChannel = info.channel;
+            resourceName = info.originalName;
+            break;
+        }
+    }
+
+    // If no exact match, check for templates
+    if (!resourceInfo) {
+        // This is a simplistic approach; a real implementation would properly parse the URI template
+        for (const [resId, info] of Object.entries(resourcesRegistry)) {
+            if (info.isTemplate && uri.startsWith(info.uriTemplate.split('{')[0])) {
+                resourceInfo = info;
+                targetChannel = info.channel;
+                resourceName = info.originalName;
+                break;
+            }
+        }
+    }
+
+    if (!resourceInfo) {
+        ws.send(JSON.stringify({
+            id,
+            type: 'resourceResponse',
+            error: `Resource not found for URI: ${uri}`
+        }));
+        return;
+    }
+
+    // Get the target channel
+    if (!channels[targetChannel] || channels[targetChannel].size === 0) {
+        ws.send(JSON.stringify({
+            id,
+            type: 'resourceResponse',
+            error: `No clients available in channel ${targetChannel} to handle resource: ${resourceName}`
+        }));
+        return;
+    }
+
+    // Pick the first client in the target channel
+    const targetClient = channels[targetChannel].values().next().value;
+
+    // Create a unique request ID for tracking
+    const requestId = (requestIdCounter++).toString();
+
+    // Store the pending request
+    pendingRequests[requestId] = {
+        originalId: id,
+        requesterWs: ws,
+        timestamp: Date.now()
+    };
+
+    // Set up timeout for the request
+    setTimeout(() => {
+        if (pendingRequests[requestId]) {
+            const {requesterWs, originalId} = pendingRequests[requestId];
+            delete pendingRequests[requestId];
+
+            try {
+                requesterWs.send(JSON.stringify({
+                    id: originalId,
+                    type: 'resourceResponse',
+                    error: `Resource request timed out: ${uri}`
+                }));
+            } catch (error) {
+                console.error('Error sending timeout response:', error);
+            }
+        }
+    }, 30000); // 30 second timeout
+
+    // Send the request to the target client
+    targetClient.send(JSON.stringify({
+        id: requestId,
+        type: 'readResource',
+        uri: uri
+    }));
+
+    console.error(`Resource request forwarded: ${uri} to channel: ${targetChannel}`);
+}
+
 // Handle tool response
 function handleToolResponse(data) {
     const {id, result, error} = data;
@@ -568,6 +991,181 @@ function handleToolResponse(data) {
     } catch (error) {
         console.error('Error forwarding tool response:', error);
     }
+}
+
+// Handle prompt response
+function handlePromptResponse(data) {
+    const {id, result, error} = data;
+
+    // Check if this is a response to a pending request
+    if (!pendingRequests[id]) {
+        console.error(`No pending request found for ID: ${id}`);
+        return;
+    }
+
+    // Get the original requester information
+    const {requesterWs, originalId} = pendingRequests[id];
+    delete pendingRequests[id];
+
+    // Forward the response to the original requester
+    try {
+        requesterWs.send(JSON.stringify({
+            id: originalId,
+            type: 'promptResponse',
+            result: result,
+            error: error
+        }));
+    } catch (error) {
+        console.error('Error forwarding prompt response:', error);
+    }
+}
+
+// Handle resource response
+function handleResourceResponse(data) {
+    const {id, result, error} = data;
+
+    // Check if this is a response to a pending request
+    if (!pendingRequests[id]) {
+        console.error(`No pending request found for ID: ${id}`);
+        return;
+    }
+
+    // Get the original requester information
+    const {requesterWs, originalId} = pendingRequests[id];
+    delete pendingRequests[id];
+
+    // Forward the response to the original requester
+    try {
+        requesterWs.send(JSON.stringify({
+            id: originalId,
+            type: 'resourceResponse',
+            result: result,
+            error: error
+        }));
+    } catch (error) {
+        console.error('Error forwarding resource response:', error);
+    }
+}
+
+// Handle sampling response
+function handleSamplingResponse(data) {
+    const {id, result, error} = data;
+
+    // Check if this is a response to a pending request
+    if (!pendingRequests[id]) {
+        console.error(`No pending request found for ID: ${id}`);
+        return;
+    }
+
+    // Get the original requester information
+    const {requesterWs, originalId} = pendingRequests[id];
+    delete pendingRequests[id];
+
+    // Forward the response to the original requester
+    try {
+        requesterWs.send(JSON.stringify({
+            id: originalId,
+            type: 'samplingResponse',
+            result: result,
+            error: error
+        }));
+    } catch (error) {
+        console.error('Error forwarding sampling response:', error);
+    }
+}
+
+// Handle create sampling message
+function handleCreateSamplingMessage(ws, callerChannel, data) {
+    const {
+        id,
+        messages,
+        systemPrompt,
+        includeContext,
+        temperature,
+        maxTokens,
+        stopSequences,
+        metadata,
+        modelPreferences
+    } = data;
+
+    // Special handling if the caller is on the MCP path
+    const isMcpClient = (callerChannel === MCP_PATH);
+
+    // For non-MCP clients or if no client is available in any channel
+    if (!isMcpClient) {
+        ws.send(JSON.stringify({
+            id,
+            type: 'samplingResponse',
+            error: `Sampling is only available through MCP path`
+        }));
+        return;
+    }
+
+    // Find a client that can handle sampling - target the first available client
+    let targetClient = null;
+    let targetChannel = null;
+
+    // Iterate through all channels to find one with clients
+    for (const [channel, clients] of Object.entries(channels)) {
+        if (channel !== MCP_PATH && clients.size > 0) {
+            targetClient = clients.values().next().value;
+            targetChannel = channel;
+            break;
+        }
+    }
+
+    if (!targetClient) {
+        ws.send(JSON.stringify({
+            id,
+            type: 'samplingResponse',
+            error: 'No clients available to handle sampling request'
+        }));
+        return;
+    }
+
+    // Create a unique request ID for tracking
+    const requestId = (requestIdCounter++).toString();
+
+    // Store the pending request
+    pendingRequests[requestId] = {
+        originalId: id,
+        requesterWs: ws,
+        timestamp: Date.now()
+    };
+
+    // Set up timeout for the request (longer timeout for sampling)
+    setTimeout(() => {
+        if (pendingRequests[requestId]) {
+            const {requesterWs, originalId} = pendingRequests[requestId];
+            delete pendingRequests[requestId];
+
+            try {
+                requesterWs.send(JSON.stringify({
+                    id: originalId,
+                    type: 'samplingResponse',
+                    error: 'Sampling request timed out'
+                }));
+            } catch (error) {
+                console.error('Error sending timeout response:', error);
+            }
+        }
+    }, 120000); // 120 second timeout for sampling
+
+    // Forward the request to the target client
+    targetClient.send(JSON.stringify({
+        id: requestId,
+        type: 'createSamplingMessage',
+        messages,
+        systemPrompt,
+        includeContext,
+        temperature,
+        maxTokens,
+        stopSequences,
+        metadata,
+        modelPreferences
+    }));
+
+    console.error(`Sampling request forwarded to channel: ${targetChannel}`);
 }
 
 // Function to generate a secure random token
@@ -840,7 +1438,7 @@ const main = async () => {
         authorizedTokens[formatChannel(address)] = token;
         await saveAuthorizedTokens();
 
-        // If server isn't running, exit
+        // If server is running, exit
         if (serverStatus.running) {
             console.log(`Server is running with PID: ${serverStatus.pid}`);
             process.exit(0);

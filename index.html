@@ -12,27 +12,32 @@
             padding: 20px;
             line-height: 1.5;
         }
+
         h1 {
             color: #333;
         }
+
         .demo-section {
             margin-bottom: 30px;
             padding: 20px;
             background-color: #f5f5f5;
             border-radius: 5px;
         }
+
         code {
             background-color: #eee;
             padding: 2px 4px;
             border-radius: 3px;
             font-family: monospace;
         }
+
         pre {
             background-color: #f8f8f8;
             padding: 10px;
             border-radius: 5px;
             overflow-x: auto;
         }
+
         button {
             padding: 8px 15px;
             background-color: #007bff;
@@ -41,32 +46,77 @@
             border-radius: 5px;
             cursor: pointer;
             margin-right: 10px;
+            margin-bottom: 5px;
         }
+
         button:hover {
             background-color: #0069d9;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 15px;
+        }
+
+        .tab {
+            padding: 8px 15px;
+            cursor: pointer;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .tab.active {
+            background-color: #fff;
+            border-bottom: 1px solid #fff;
+            margin-bottom: -1px;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
         }
     </style>
 </head>
 <body>
-    <h1>WebMCP Example</h1>
+<h1>WebMCP Example</h1>
 
-    <div class="demo-section">
-        <h2>About WebMCP</h2>
-        <p>WebMCP is a JavaScript library that allows any website to integrate with the Model Context Protocol.
-           It provides a small widget in the corner of your page that allows users to interact with your webpage via LLM or agent.</p>
-        <p>The widget appears as a small blue square in the bottom right corner. Click it to expand and connect using a token.</p>
+<div class="demo-section">
+    <h2>About WebMCP</h2>
+    <p>WebMCP is a JavaScript library that allows any website to integrate with the Model Context Protocol.
+        It provides a small widget in the corner of your page that allows users to interact with your webpage via LLM or
+        agent.</p>
+    <p>The widget appears as a small blue square in the bottom right corner. Click it to expand and connect using a
+        token.</p>
+</div>
+
+<div class="demo-section">
+    <h2>Getting Started</h2>
+    <p>To use WebMCP, simply include the script on your page:</p>
+    <pre><code>&lt;script src="webmcp.js"&gt;&lt;/script&gt;</code></pre>
+    <p>The WebMCP widget will automatically initialize and appear in the bottom right corner of your page.</p>
+</div>
+
+<div class="demo-section">
+    <h2>MCP Features</h2>
+    <div class="tabs">
+        <div class="tab active" data-tab="tools">Tools</div>
+        <div class="tab" data-tab="prompts">Prompts</div>
+        <div class="tab" data-tab="resources">Resources</div>
+        <div class="tab" data-tab="sampling">Sampling</div>
     </div>
 
-    <div class="demo-section">
-        <h2>Getting Started</h2>
-        <p>To use WebMCP, simply include the script on your page:</p>
-        <pre><code>&lt;script src="webmcp.js"&gt;&lt;/script&gt;</code></pre>
-        <p>The WebMCP widget will automatically initialize and appear in the bottom right corner of your page.</p>
-    </div>
-
-    <div class="demo-section">
-        <h2>Registering tools</h2>
-        <span>Tools are registered via calling <pre style="display: inline"><code>registerTool</code></pre>.</span>
+    <div class="tab-content active" id="tools-content">
+        <h3>Registering Tools</h3>
+        <p>Tools allow the LLM to perform actions on your website. They are registered via calling
+            <code>registerTool</code>.</p>
         <pre><code>// Initialize with custom options
 const mcp = new WebMCP({
     color: '#4CAF50',
@@ -83,172 +133,558 @@ mcp.registerTool(
         location: { type: "string" }
     },
     function(args) {
-        return `Weather for ${args.location}: Sunny, 22°C`;
+        return {
+            content: [{
+                type: "text",
+                text: `Weather for ${args.location}: Sunny, 22°C`
+            }]
+        };
     }
 );</code></pre>
 
         <span>To provide the best experience for users, it is recommended to register all tools directly after loading
-            <pre style="display: inline"><code>&lt;script src="webmcp.js"&gt;&lt;/script&gt;</code></pre>,
-            as MCP clients may need to be restarted to get the available tools.
-        </span>
+                <code>&lt;script src="webmcp.js"&gt;&lt;/script&gt;</code>,
+                as MCP clients may need to be restarted to get the available tools.
+            </span>
         <p>For the sake of demonstration, the below can be clicked to dynamically register a new tool:</p>
         <button id="register-weather">Register Weather Tool</button>
         <button id="register-time">Register Time Tool</button>
     </div>
 
-    <div class="demo-section">
-        <h2>Connect to WebMCP Server</h2>
-        <p>To use WebMCP with a model, you need to:</p>
-        <ol>
-            <li>Start the WebMCP server: <code>npm run start-ws-server</code></li>
-            <li>Generate a connection token: <code>npm run authorize</code></li>
-            <li>Click the blue square in the corner and paste the token</li>
-            <li>Start the MCP client: <code>npm run start-mcp-client</code></li>
-        </ol>
+    <div class="tab-content" id="prompts-content">
+        <h3>Registering Prompts</h3>
+        <p>Prompts are predefined templates that clients can use for LLM interactions. They allow standardization of
+            common queries and can accept dynamic arguments.</p>
+        <pre><code>// Register a prompt for generating a Git commit message
+mcp.registerPrompt(
+    'git-commit',
+    'Generate a Git commit message',
+    [
+        {
+            name: 'changes',
+            description: 'Git diff or description of changes',
+            required: true
+        }
+    ],
+    function(args) {
+        return {
+            messages: [
+                {
+                    role: "user",
+                    content: {
+                        type: "text",
+                        text: `Generate a concise but descriptive commit message for these changes:\n\n${args.changes}`
+                    }
+                }
+            ]
+        };
+    }
+);</code></pre>
+        <p>Click the buttons below to register example prompts:</p>
+        <button id="register-commit-prompt">Register Git Commit Prompt</button>
+        <button id="register-explain-prompt">Register Code Explanation Prompt</button>
+        <button id="register-summarize-prompt">Register Text Summarization Prompt</button>
     </div>
 
-    <!-- Load WebMCP script -->
-    <script src="src/webmcp.js"></script>
-
-    <!-- Demo script -->
-    <script>
-        // Get reference to WebMCP instance (automatically created)
-        window.webMCP = new WebMCP();
-        const mcp = window.webMCP;
-
-        // Register some default tools for demo purposes
-        if (mcp) {
-            // Calculator tool
-            mcp.registerTool(
-                'calculator',
-                'Performs basic math operations',
+    <div class="tab-content" id="resources-content">
+        <h3>Registering Resources</h3>
+        <p>Resources expose data and content that can be read by clients and used as context for LLM interactions.
+            Resources are identified by URIs and can contain either text or binary data.</p>
+        <pre><code>// Register a resource for a specific file
+mcp.registerResource(
+    'page-content',
+    'Current page content',
+    {
+        uri: 'page://current',
+        mimeType: 'text/html'
+    },
+    function(uri) {
+        return {
+            contents: [
                 {
-                    type: "object",
-                    properties: {
-                        a: {type: "number"},
-                        b: {type: "number"},
-                        operation: {
-                            type: "string",
-                            enum: ["add", "subtract", "multiply", "divide"]
-                        }
-                    }
-                },
-                // Execute, then convert it to a string.
-                (args) => {
-                    const output = ((function (args) {
-                        const {operation, a, b} = args;
-
-                        switch (operation) {
-                            case 'add':
-                                return a + b;
-                            case 'subtract':
-                                return a - b;
-                            case 'multiply':
-                                return a * b;
-                            case 'divide':
-                                if (b === 0) throw new Error('Division by zero');
-                                return a / b;
-                            default:
-                                throw new Error(`Unknown operation: ${operation}`);
-                        }
-                    })(args));
-                    return {
-                        content: [{
-                            type: "text",
-                            text: output.toString()
-                        }]
-                    }
+                    uri: uri,
+                    mimeType: 'text/html',
+                    text: document.body.innerHTML
                 }
-            );
+            ]
+        };
+    }
+);
 
-            // Echo tool
-            mcp.registerTool(
-                'echo',
-                'Echoes back the input message',
-                {
-                    type: "object",
-                    properties: {
-                        message: { type: "string" }
-                    }
-                },
-                function (args) {
-                    return {
-                        content: [{
-                            type: "text",
-                            text: args.message
-                        }]
-                    }
-                }
-            );
+// Register a resource template for dynamic data
+mcp.registerResource(
+    'element-content',
+    'Content of a specific DOM element by ID',
+    {
+        uriTemplate: 'element://{elementId}',
+        mimeType: 'text/html'
+    },
+    function(uri) {
+        // Parse element ID from URI
+        const elementId = uri.replace('element://', '');
+        const element = document.getElementById(elementId);
+
+        if (!element) {
+            throw new Error(`Element with ID "${elementId}" not found`);
         }
 
-        // Weather tool registration
-        document.getElementById('register-weather').addEventListener('click', function() {
-            mcp.registerTool(
-                'weather',
-                'Get weather information for a location',
+        return {
+            contents: [
                 {
-                    type: "object",
-                    properties: {
-                        location: { type: "string" }
-                    }
-                },
-                function(args) {
-                    return {
-                        content: [{
-                            type: "text",
-                            text: `Weather for ${args.location}: Sunny, 22°C`,
-                        }]
+                    uri: uri,
+                    mimeType: 'text/html',
+                    text: element.innerHTML
+                }
+            ]
+        };
+    }
+);</code></pre>
+        <p>Click the buttons below to register example resources:</p>
+        <button id="register-page-resource">Register Page Content Resource</button>
+        <button id="register-element-resource">Register Element Content Resource</button>
+        <button id="register-user-data-resource">Register User Data Resource</button>
+    </div>
+
+    <div class="tab-content" id="sampling-content">
+        <h3>Sampling with WebMCP</h3>
+        <p>Sampling allows servers to request LLM completions through the client. This enables sophisticated agentic
+            behaviors while maintaining security and privacy via human oversight.</p>
+        <p>When a sampling request is received, WebMCP displays a modal dialog asking the user to provide a
+            response:</p>
+        <pre><code>// Sampling is handled automatically by WebMCP
+// The server sends a sampling request:
+{
+  "method": "sampling/createMessage",
+  "params": {
+    "messages": [
+      {
+        "role": "user",
+        "content": {
+          "type": "text",
+          "text": "What files are in the current directory?"
+        }
+      }
+    ],
+    "systemPrompt": "You are a helpful assistant.",
+    "includeContext": "thisServer",
+    "maxTokens": 100
+  }
+}
+
+// The WebMCP widget shows a dialog to the user, who can then type a response
+// The response is sent back to the server</code></pre>
+        <p>Click the button below to simulate a sampling request (this would normally come from the server):</p>
+        <button id="simulate-sampling">Simulate Sampling Request</button>
+    </div>
+</div>
+
+<div class="demo-section">
+    <h2>Connect to WebMCP Server</h2>
+    <p>To use WebMCP with a model, you need to:</p>
+    <ol>
+        <li>Start the WebMCP server: <code>npm run start-ws-server</code></li>
+        <li>Generate a connection token: <code>npm run authorize</code></li>
+        <li>Click the blue square in the corner and paste the token</li>
+        <li>Start the MCP client: <code>npm run start-mcp-client</code></li>
+    </ol>
+</div>
+
+<!-- Data for user resource demo -->
+<div id="user-data" style="display: none;">
+    {
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "preferences": {
+    "theme": "dark",
+    "notifications": true,
+    "language": "en-US"
+    },
+    "recentActivity": [
+    {"type": "login", "timestamp": "2023-03-01T08:30:45Z"},
+    {"type": "view", "page": "dashboard", "timestamp": "2023-03-01T08:31:20Z"},
+    {"type": "edit", "item": "profile", "timestamp": "2023-03-01T08:45:12Z"}
+    ]
+    }
+</div>
+
+<!-- Load WebMCP script -->
+<script src="src/webmcp.js"></script>
+
+<!-- Demo script -->
+<script>
+    // Get reference to WebMCP instance (automatically created)
+    window.webMCP = new WebMCP();
+    const mcp = window.webMCP;
+
+    // Register some default tools for demo purposes
+    if (mcp) {
+        // Calculator tool
+        mcp.registerTool(
+            'calculator',
+            'Performs basic math operations',
+            {
+                type: "object",
+                properties: {
+                    a: {type: "number"},
+                    b: {type: "number"},
+                    operation: {
+                        type: "string",
+                        enum: ["add", "subtract", "multiply", "divide"]
                     }
                 }
-            );
-            alert('Weather tool registered!');
-        });
+            },
+            function (args) {
+                const {operation, a, b} = args;
+                let result;
 
-        // Time tool registration
-        document.getElementById('register-time').addEventListener('click', function() {
-            mcp.registerTool(
-                'time',
-                'Get current time for a timezone',
+                switch (operation) {
+                    case 'add':
+                        result = a + b;
+                        break;
+                    case 'subtract':
+                        result = a - b;
+                        break;
+                    case 'multiply':
+                        result = a * b;
+                        break;
+                    case 'divide':
+                        if (b === 0) throw new Error('Division by zero');
+                        result = a / b;
+                        break;
+                    default:
+                        throw new Error(`Unknown operation: ${operation}`);
+                }
+
+                return {
+                    content: [{
+                        type: "text",
+                        text: result.toString()
+                    }]
+                };
+            }
+        );
+
+        // Echo tool
+        mcp.registerTool(
+            'echo',
+            'Echoes back the input message',
+            {
+                type: "object",
+                properties: {
+                    message: {type: "string"}
+                }
+            },
+            function (args) {
+                return {
+                    content: [{
+                        type: "text",
+                        text: args.message
+                    }]
+                };
+            }
+        );
+    }
+
+    // Weather tool registration
+    document.getElementById('register-weather').addEventListener('click', function () {
+        mcp.registerTool(
+            'weather',
+            'Get weather information for a location',
+            {
+                type: "object",
+                properties: {
+                    location: {type: "string"}
+                }
+            },
+            function (args) {
+                return {
+                    content: [{
+                        type: "text",
+                        text: `Weather for ${args.location}: Sunny, 22°C`,
+                    }]
+                };
+            }
+        );
+        alert('Weather tool registered!');
+    });
+
+    // Time tool registration
+    document.getElementById('register-time').addEventListener('click', function () {
+        mcp.registerTool(
+            'time',
+            'Get current time for a timezone',
+            {
+                type: "object",
+                properties: {
+                    timezone: {
+                        type: "string",
+                        enum: ["UTC", "EST", "PST", "local"]
+                    }
+                }
+            },
+            function (args) {
+                const now = new Date();
+                let timeStr;
+
+                switch (args.timezone) {
+                    case 'UTC':
+                        timeStr = now.toUTCString();
+                        break;
+                    case 'EST':
+                        timeStr = now.toLocaleString('en-US', {timeZone: 'America/New_York'});
+                        break;
+                    case 'PST':
+                        timeStr = now.toLocaleString('en-US', {timeZone: 'America/Los_Angeles'});
+                        break;
+                    case 'local':
+                    default:
+                        timeStr = now.toLocaleString();
+                        break;
+                }
+
+                return {
+                    content: [{
+                        type: "text",
+                        text: `Current time (${args.timezone}): ${timeStr}`
+                    }]
+                };
+            }
+        );
+        alert('Time tool registered!');
+    });
+
+    // Prompt registration examples
+    document.getElementById('register-commit-prompt').addEventListener('click', function () {
+        mcp.registerPrompt(
+            'git-commit',
+            'Generate a Git commit message',
+            [
                 {
-                    type: "object",
-                    properties: {
-                        timezone: {
-                            type: "string",
-                            enum: ["UTC", "EST", "PST", "local"]
+                    name: 'changes',
+                    description: 'Git diff or description of changes',
+                    required: true
+                }
+            ],
+            function (args) {
+                return {
+                    messages: [
+                        {
+                            role: "user",
+                            content: {
+                                type: "text",
+                                text: `Generate a concise but descriptive commit message for these changes:\n\n${args.changes}`
+                            }
                         }
-                    }
+                    ]
+                };
+            }
+        );
+        alert('Git commit prompt registered!');
+    });
+
+    document.getElementById('register-explain-prompt').addEventListener('click', function () {
+        mcp.registerPrompt(
+            'explain-code',
+            'Explain how code works',
+            [
+                {
+                    name: 'code',
+                    description: 'Code to explain',
+                    required: true
                 },
-                function(args) {
-                    const now = new Date();
-                    let timeStr;
-
-                    switch(args.timezone) {
-                        case 'UTC':
-                            timeStr = now.toUTCString();
-                            break;
-                        case 'EST':
-                            timeStr = now.toLocaleString('en-US', { timeZone: 'America/New_York' });
-                            break;
-                        case 'PST':
-                            timeStr = now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
-                            break;
-                        case 'local':
-                        default:
-                            timeStr = now.toLocaleString();
-                            break;
-                    }
-
-                    return {
-                        content: [{
-                            type: "text",
-                            text: `Current time (${args.timezone}): ${timeStr}`
-                        }]
-                    }
+                {
+                    name: 'language',
+                    description: 'Programming language',
+                    required: false
                 }
-            );
-            alert('Time tool registered!');
+            ],
+            function (args) {
+                const language = args.language || 'code';
+                return {
+                    messages: [
+                        {
+                            role: "user",
+                            content: {
+                                type: "text",
+                                text: `Please explain how this ${language} code works:\n\n\`\`\`${language}\n${args.code}\n\`\`\``
+                            }
+                        }
+                    ]
+                };
+            }
+        );
+        alert('Code explanation prompt registered!');
+    });
+
+    document.getElementById('register-summarize-prompt').addEventListener('click', function () {
+        mcp.registerPrompt(
+            'summarize-text',
+            'Create a summary of text',
+            [
+                {
+                    name: 'text',
+                    description: 'Text content to summarize',
+                    required: true
+                },
+                {
+                    name: 'length',
+                    description: 'Desired length of summary (short, medium, long)',
+                    required: false
+                }
+            ],
+            function (args) {
+                const length = args.length || 'medium';
+                let lengthInstruction = '';
+
+                switch (length) {
+                    case 'short':
+                        lengthInstruction = 'Keep the summary very concise, using no more than 2-3 sentences.';
+                        break;
+                    case 'medium':
+                        lengthInstruction = 'Provide a moderate summary of about 4-6 sentences.';
+                        break;
+                    case 'long':
+                        lengthInstruction = 'Create a comprehensive summary that covers all key points.';
+                        break;
+                }
+
+                return {
+                    messages: [
+                        {
+                            role: "user",
+                            content: {
+                                type: "text",
+                                text: `Please summarize the following text. ${lengthInstruction}\n\n${args.text}`
+                            }
+                        }
+                    ]
+                };
+            }
+        );
+        alert('Text summarization prompt registered!');
+    });
+
+    // Resource registration examples
+    document.getElementById('register-page-resource').addEventListener('click', function () {
+        mcp.registerResource(
+            'page-content',
+            'Current page content',
+            {
+                uri: 'page://current',
+                mimeType: 'text/html'
+            },
+            function (uri) {
+                return {
+                    contents: [
+                        {
+                            uri: uri,
+                            mimeType: 'text/html',
+                            text: document.body.innerHTML
+                        }
+                    ]
+                };
+            }
+        );
+        alert('Page content resource registered!');
+    });
+
+    document.getElementById('register-element-resource').addEventListener('click', function () {
+        mcp.registerResource(
+            'element-content',
+            'Content of a specific DOM element by ID',
+            {
+                uriTemplate: 'element://{elementId}',
+                mimeType: 'text/html'
+            },
+            function (uri) {
+                // Parse element ID from URI
+                const elementId = uri.replace('element://', '');
+                const element = document.getElementById(elementId);
+
+                if (!element) {
+                    throw new Error(`Element with ID "${elementId}" not found`);
+                }
+
+                return {
+                    contents: [
+                        {
+                            uri: uri,
+                            mimeType: 'text/html',
+                            text: element.innerHTML
+                        }
+                    ]
+                };
+            }
+        );
+        alert('Element content resource template registered!');
+    });
+
+    document.getElementById('register-user-data-resource').addEventListener('click', function () {
+        mcp.registerResource(
+            'user-data',
+            'Current user profile and preferences',
+            {
+                uri: 'user://profile',
+                mimeType: 'application/json'
+            },
+            function (uri) {
+                // Get data from the hidden element (in a real app, this might come from an API)
+                const userData = document.getElementById('user-data').textContent;
+
+                return {
+                    contents: [
+                        {
+                            uri: uri,
+                            mimeType: 'application/json',
+                            text: userData
+                        }
+                    ]
+                };
+            }
+        );
+        alert('User data resource registered!');
+    });
+
+    // Sampling simulation
+    document.getElementById('simulate-sampling').addEventListener('click', function () {
+        // Create a simulate sampling request - normally this would come from the server
+        const sampleMessages = [
+            {
+                role: "user",
+                content: {
+                    type: "text",
+                    text: "Can you help me understand what MCP resources are?"
+                }
+            }
+        ];
+
+        // Simulate the handler directly
+        mcp._handleCreateSamplingMessage({
+            id: "sample-" + Math.random().toString(36).substr(2, 9),
+            messages: sampleMessages,
+            systemPrompt: "You are a helpful assistant specialized in explaining MCP concepts.",
+            includeContext: "thisServer",
+            maxTokens: 500
         });
-    </script>
+    });
+
+    // Tab switching functionality
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', function () {
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+
+            // Add active class to clicked tab
+            this.classList.add('active');
+
+            // Hide all tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            // Show content for active tab
+            const tabId = this.getAttribute('data-tab');
+            document.getElementById(tabId + '-content').classList.add('active');
+        });
+    });
+</script>
 </body>
 </html>
