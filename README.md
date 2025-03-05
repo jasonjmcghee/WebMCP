@@ -1,5 +1,7 @@
 # WebMCP
 
+![NPM Version](https://img.shields.io/npm/v/%40jason.today%2Fwebmcp) ![MIT licensed](https://img.shields.io/npm/l/%40jason.today%2Fwebmcp)
+
 WebMCP allows websites to share tools, resources, prompts, etc. to LLMs. In other words, WebMCP allows a website to be  an MCP server.
 
 It comes in the form of a widget that a website owner can put on their site and give client-side LLMs what they need to provide a great UX for the user or agent.
