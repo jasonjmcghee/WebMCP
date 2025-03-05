@@ -16,7 +16,9 @@ _The look, feel, how it's used, and security are all absolutely open for contrib
 
 # Demo (Sound on 🔊)
 
-https://github.com/user-attachments/assets/06739a5f-a9c3-4a14-9928-dd53da7e283d
+
+https://github.com/user-attachments/assets/43ad160a-846d-48ad-9af9-f6d537e78473
+
 
 ## Getting started (add WebMCP to your website)
 
