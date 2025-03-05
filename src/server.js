@@ -582,51 +582,14 @@ mcpServer.setRequestHandler(CreateMessageRequestSchema, async (request) => {
 });
 
 async function main() {
-    try {
-        // Connect to the WebSocket server
-        connectToWebSocketServer();
-
-        // Start the MCP server with stdio transport
-        const transport = new StdioServerTransport();
-        await mcpServer.connect(transport);
-        console.error("MCP server running with stdio transport");
-        return true;
-    } catch (error) {
-        console.error("Error starting MCP client:", error);
-        return false;
-    }
+    // Connect to the WebSocket server
+    connectToWebSocketServer();
+    const transport = new StdioServerTransport();
+    await mcpServer.connect(transport);
+    console.error("MCP server running with stdio transport");
 }
 
-// Handle graceful shutdown
-const shutdownGracefully = (signal) => {
-    console.error(`\nReceived ${signal}. Shutting down gracefully...`);
-
-    // Close WebSocket connection if open
-    if (wsClient && wsClient.readyState === WebSocket.OPEN) {
-        wsClient.close();
-    }
-
-    process.exit(0);
-};
-
-(async function() {
-    await main();
+main().catch((error) => {
+    console.error("Fatal error in main():", error);
+    process.exit(1);
 });
-
-// Handle CTRL+C (SIGINT)
-process.on('SIGINT', () => shutdownGracefully('SIGINT'));
-
-// Handle SIGTERM
-process.on('SIGTERM', () => shutdownGracefully('SIGTERM'));
-
-// Enable keyboard input handling for CTRL+C on Windows
-if (process.platform === 'win32') {
-    process.stdin.setRawMode(true);
-    process.stdin.resume();
-    process.stdin.on('data', (data) => {
-        // Check for CTRL+C (03 in hex)
-        if (data.length === 1 && data[0] === 0x03) {
-            shutdownGracefully('CTRL+C');
-        }
-    });
-}
