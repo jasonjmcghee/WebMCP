@@ -2,9 +2,9 @@
   "name": "@jason.today/webmcp",
   "version": "0.1.0",
   "description": "WebSocket-based Model Context Protocol implementation",
-  "main": "index.js",
+  "main": "src/websocket-server.js",
   "bin": {
-    "webmcp": "build/index.js"
+    "webmcp": "./build/index.js"
   },
   "repository": "https://github.com/jasonjmcghee/webmcp",
   "author": "Jason McGhee",
@@ -34,5 +34,9 @@
   },
   "devDependencies": {
     "esbuild": "^0.25.0"
-  }
+  },
+  "files": [
+    "build/",
+    "src/"
+  ]
 }
