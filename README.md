@@ -10,6 +10,8 @@ It comes in the form of a widget that a website owner can put on their site and 
 
 To initiate a connection, the user generates a token with an unique identifier and connection information and provides it to the input in the widget. The widget then talks to the locally hosted websocket using that information and the server validates the information and establishes a connection. If the user navigates away, they have a grace period to reconnect without needing to reauthenticate (especially useful for multi-page apps / navigation).
 
+You can connect to any number of websites at a time - and tools are "scoped" (by name) based on the domain to simplify organization.
+
 _The look, feel, how it's used, and security are all absolutely open for contribution / constructive criticism. MCP Clients directly building WebMCP functionality seems like an ideal outcome._
 
 # Demo (Sound on 🔊)
