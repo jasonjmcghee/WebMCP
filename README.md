@@ -1,6 +1,6 @@
 # WebMCP
 
-First-class LLM support for websites in a javascript snippet.
+LLM support for websites in a javascript snippet.
 
 ![NPM Version](https://img.shields.io/npm/v/%40jason.today%2Fwebmcp) ![MIT licensed](https://img.shields.io/npm/l/%40jason.today%2Fwebmcp)
 
