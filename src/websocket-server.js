@@ -1500,7 +1500,7 @@ const main = async () => {
         await saveAuthorizedTokens();
 
         // Close all WebSocket connections in all channels
-        for (const channel of channels.values()) {
+        for (const channel of Object.values(channels)) {
             for (const ws of channel) {
                 try {
                     ws.close();
