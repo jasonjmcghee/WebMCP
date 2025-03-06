@@ -41,7 +41,7 @@ The WebMCP widget will automatically initialize and appear in the bottom right c
 
 ## Getting started (using your LLM with websites using WebMCP)
 
-Install + start the server (it's a daemon, so you can start it anywhere)
+Install + start the server (it's a daemon, so you can start it anywhere - run this again if you ever want to update the package)
 
 ```bash
 npx @jason.today/webmcp@latest
@@ -57,7 +57,7 @@ For example, in claude desktop config:
     "webmcp": {
       "command": "npx",
       "args": [
-        "@jason.today/webmcp@latest --mcp"
+        "@jason.today/webmcp --mcp"
       ]
     }
   }
