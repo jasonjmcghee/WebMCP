@@ -38,7 +38,7 @@ The WebMCP widget will automatically initialize and appear in the bottom right c
 Install + start the server (it's a daemon, so you can start it anywhere)
 
 ```bash
-npx @jason.today/webmcp
+npx @jason.today/webmcp@latest
 ```
 
 Update your MCP client's config to execute the mcp server by passing `--mcp` to the main binary.
@@ -51,7 +51,7 @@ For example, in claude desktop config:
     "webmcp": {
       "command": "npx",
       "args": [
-        "@jason.today/webmcp --mcp"
+        "@jason.today/webmcp@latest --mcp"
       ]
     }
   }
