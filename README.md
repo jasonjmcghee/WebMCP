@@ -18,6 +18,12 @@ _The look, feel, how it's used, and security are all absolutely open for contrib
 
 # Demo (Sound on 🔊)
 
+### Super Quick Demo (20 seconds)
+
+https://github.com/user-attachments/assets/61229470-1242-401e-a7d9-c0d762d7b519
+
+
+### Full Demo (3 minutes)
 
 https://github.com/user-attachments/assets/43ad160a-846d-48ad-9af9-f6d537e78473
 
