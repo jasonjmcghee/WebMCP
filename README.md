@@ -51,7 +51,7 @@ For example, in claude desktop config:
     "webmcp": {
       "command": "npx",
       "args": [
-        "npx @jason.today/webmcp --mcp"
+        "@jason.today/webmcp --mcp"
       ]
     }
   }
