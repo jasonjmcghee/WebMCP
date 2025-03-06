@@ -12,11 +12,13 @@ import {
     ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
 
+const version = process.env.npm_package_version;
+
 // Create a central MCP server that communicates over stdio
 const mcpServer = new Server(
     {
         name: "WebMCP",
-        version: "0.1.3"
+        version,
     },
     {
         capabilities: {
