@@ -11,14 +11,13 @@ import {
     ListToolsRequestSchema,
     ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
-
-const version = process.env.npm_package_version;
+import {generateNewRegistrationToken, generateToken} from "./tokens.js";
 
 // Create a central MCP server that communicates over stdio
 const mcpServer = new Server(
     {
         name: "WebMCP",
-        version,
+        version: "0.1.5",
     },
     {
         capabilities: {
@@ -48,7 +47,7 @@ const pendingRequests = new Map();
 let requestIdCounter = 1;
 
 // Function to handle WebSocket messages
-function handleWebSocketMessage(message) {
+async function handleWebSocketMessage(message) {
     try {
         const data = JSON.parse(message);
         console.error(`Received message: ${data.type}`);
@@ -172,6 +171,12 @@ function handleWebSocketMessage(message) {
             } else {
                 console.error(`No pending request found for ID: ${id}`);
             }
+        } else if (data.type === 'toolRegistered') {
+            await mcpServer.sendToolListChanged();
+        } else if (data.type === 'resourceRegistered') {
+            await mcpServer.sendResourceListChanged();
+        } else if (data.type === 'promptRegistered') {
+            await mcpServer.sendPromptListChanged();
         } else if (data.type === 'welcome') {
             // Welcome message from the server, we're already connected to the MCP path
             console.error(`Connected to path: ${data.channel}`);
@@ -239,6 +244,16 @@ function sendMessage(message) {
 
 // Set up the MCP server to handle tool calls by sending them to the WebSocket server
 mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+    if (request.params.name === "_webmcp_get-token") {
+        return {
+            content: [{
+                type: "text",
+                text: `Paste this into the token input on the WebMCP website
+${await generateNewRegistrationToken()}`,
+            }]
+        };
+    }
+
     if (!wsClient || wsClient.readyState !== WebSocket.OPEN) {
         return {
             content: [{
@@ -290,8 +305,19 @@ mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // Set up the MCP server to handle list tools by querying the WebSocket server
 mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
+    const builtInTools = [
+        {
+            name: "_webmcp_get-token",
+            description: "Retrieve a token to connect to a website for WebMCP. A user might say 'register a token' or 'add a webmcp'",
+            inputSchema: {
+                type: "object",
+                properties: {},
+            },
+        }
+    ];
+
     if (!wsClient || wsClient.readyState !== WebSocket.OPEN) {
-        return {tools: []};
+        return {tools: builtInTools};
     }
 
     // Create a unique request ID
@@ -321,7 +347,7 @@ mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
         const tools = await responsePromise;
 
         // Wait for the response
-        return {tools};
+        return { tools: [...tools, ...builtInTools] };
     } catch (error) {
         console.error('Error listing tools:', error);
         return {tools: []}; // Return empty list on error
@@ -330,8 +356,12 @@ mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
 
 // Set up the MCP server to handle list prompts by querying the WebSocket server
 mcpServer.setRequestHandler(ListPromptsRequestSchema, async () => {
+    const builtInPrompts = [];
+
     if (!wsClient || wsClient.readyState !== WebSocket.OPEN) {
-        return {prompts: []};
+        return {
+            prompts: builtInPrompts
+        };
     }
 
     // Create a unique request ID
@@ -361,7 +391,12 @@ mcpServer.setRequestHandler(ListPromptsRequestSchema, async () => {
         const prompts = await responsePromise;
 
         // Wait for the response
-        return {prompts};
+        return {
+            prompts: [
+                ...prompts,
+                ...builtInPrompts
+            ],
+        };
     } catch (error) {
         console.error('Error listing prompts:', error);
         return {prompts: []}; // Return empty list on error

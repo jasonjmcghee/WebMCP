@@ -1,18 +1,29 @@
 import * as fs from 'fs/promises';
-import * as crypto from 'crypto';
-import {WebSocketServer} from 'ws';
+import {WebSocketServer, WebSocket} from 'ws';
 import {createServer} from 'http';
 import {parse} from 'url';
 import {fork} from 'child_process';
 import {runMcpServer} from './server.js';
-import {PID_FILE,TOKENS_FILE,SERVER_TOKEN,ensureConfigDir} from './config.js';
+import {
+    clearTokens,
+    deleteToken, generateNewRegistrationToken,
+    generateToken,
+    getToken,
+    loadAuthorizedTokens,
+    saveAuthorizedTokens, saveServerTokenToEnv,
+    setToken
+} from "./tokens.js";
+import {
+    CONFIG,
+    HOST,
+    PID_FILE,
+    SERVER_TOKEN,
+    ensureConfigDir,
+    formatChannel,
+    setConfig,
+} from './config.js';
 
 let serverToken = SERVER_TOKEN;
-
-const HOST = "localhost";
-
-// Updated later...
-let CONFIG = {};
 
 // Create HTTP server with CORS headers
 const httpServer = createServer((req, res) => {
@@ -46,6 +57,37 @@ const channels = {};
 const MCP_PATH = '/mcp';
 const REGISTER_PATH = '/register';
 
+// Function to send notifications to a client and MCP (if connected)
+function sendNotification(clientWs, channelPath, notificationType, data, mcpOnly = false) {
+    // Send to the client that initiated the action
+    if (clientWs && clientWs.readyState === WebSocket.OPEN) {
+        if (!mcpOnly) {
+            clientWs.send(JSON.stringify({
+                type: notificationType,
+                ...data
+            }));
+        }
+    }
+
+    // Also send to MCP if connected
+    if (channels[MCP_PATH] && channels[MCP_PATH].size > 0) {
+        channels[MCP_PATH].values().forEach((mcpClient) => {
+            if (mcpClient && mcpClient.readyState === WebSocket.OPEN) {
+                // For MCP, prefix names with the channel path
+                const mcpData = {...data};
+                if (mcpData.name && channelPath) {
+                    mcpData.name = `${channelPath.slice(1)}-${mcpData.name}`;
+                }
+
+                mcpClient.send(JSON.stringify({
+                    type: notificationType,
+                    ...mcpData
+                }));
+            }
+        });
+    }
+}
+
 // Track all available tools, prompts, and resources across all channels
 const toolsRegistry = {};
 const promptsRegistry = {};
@@ -57,46 +99,10 @@ let requestIdCounter = 1;
 // Map to store pending requests
 const pendingRequests = {};
 
-// Authorized channel-token pairs - Only channels with valid tokens can connect
-// Format: { "/channel1": "token123" }
-let authorizedTokens = {};
-
-// Load authorized tokens from disk
-async function loadAuthorizedTokens() {
-    try {
-        const data = await fs.readFile(TOKENS_FILE, 'utf8');
-        authorizedTokens = JSON.parse(data || "{}");
-
-        // console.error(`Loaded ${Object.keys(authorizedTokens).length} authorized channel-token pairs from ${TOKENS_FILE}`);
-        return true;
-    } catch (error) {
-        // If file doesn't exist, start with empty tokens
-        if (error.code === 'ENOENT') {
-            authorizedTokens = {};
-            return true;
-        }
-        console.error('Error loading authorized tokens:', error);
-        return false;
-    }
-}
-
-// Save authorized tokens to disk
-async function saveAuthorizedTokens() {
-    try {
-        // Convert Map to object for JSON serialization
-        const stringified = JSON.stringify(authorizedTokens, null, 2);
-        await fs.writeFile(TOKENS_FILE, stringified, 'utf8');
-        // console.error(`Saved ${stringified} authorized channel-token pairs to ${TOKENS_FILE}`);
-        return true;
-    } catch (error) {
-        console.error('Error saving authorized tokens:', error);
-        return false;
-    }
-}
 
 // Function to verify client token during WebSocket handshake
 async function verifyClientToken(info, callback) {
-    const url = new URL(`http://${HOST}${info.req.url}`);
+    const url = new URL(`https://${HOST}${info.req.url}`);
     const clientToken = url.searchParams.get('token');
     const path = url.pathname || '/';
 
@@ -125,7 +131,7 @@ async function verifyClientToken(info, callback) {
     await loadAuthorizedTokens();
 
     // Check if this channel has a valid token and it matches
-    if (authorizedTokens[path] === clientToken) {
+    if (getToken(path) === clientToken) {
         return callback(true);
     }
 
@@ -207,7 +213,7 @@ wss.on('connection', (ws, req) => {
                 const serverChannel = formatChannel(`${HOST}:${CONFIG.port}`);
 
                 await loadAuthorizedTokens();
-                if (token !== authorizedTokens[serverChannel]) {
+                if (token !== getToken(serverChannel)) {
                     console.error('Invalid token provided');
                     ws.send(JSON.stringify({
                         type: 'error',
@@ -218,8 +224,8 @@ wss.on('connection', (ws, req) => {
                 }
 
                 // Authorize the channel-token pair
-                authorizedTokens[channelPath] = token;
-                delete authorizedTokens[serverChannel];
+                setToken(channelPath, token);
+                deleteToken(serverChannel);
                 await saveAuthorizedTokens();
 
                 console.error(`Registered channel: ${channelPath} with token: ${token}`);
@@ -407,10 +413,15 @@ wss.on('connection', (ws, req) => {
 
                         // Remove the authorized token for this channel if not MCP
                         if (clientChannel !== MCP_PATH) {
-                            delete authorizedTokens[clientChannel];
+                            deleteToken(clientChannel);
                             await saveAuthorizedTokens();
                             console.error(`Removed authorized token for channel: ${clientChannel}`);
                         }
+
+                        // Update them all
+                        sendNotification(ws, undefined, 'toolRegistered', {}, true);
+                        sendNotification(ws, undefined, 'promptRegistered', {}, true);
+                        sendNotification(ws, undefined, 'resourceRegistered', {}, true);
                     }
                 }, 60000); // 1 minute timeout
             }
@@ -428,10 +439,6 @@ wss.on('connection', (ws, req) => {
         }
     });
 });
-
-function formatChannel(channel) {
-    return `/${channel.replace(/[.:]/g, '_')}`
-}
 
 // Handle ping messages
 function handlePing(ws, data) {
@@ -466,11 +473,11 @@ function handleRegisterTool(ws, channelPath, data) {
         originalName: name
     };
 
-    ws.send(JSON.stringify({
-        type: 'toolRegistered',
+    // Send registration notification to both client and MCP
+    sendNotification(ws, channelPath, 'toolRegistered', {
         name,
         toolId
-    }));
+    });
 
     console.error(`Tool registered: ${toolId}`);
 }
@@ -499,11 +506,11 @@ function handleRegisterPrompt(ws, channelPath, data) {
         originalName: name
     };
 
-    ws.send(JSON.stringify({
-        type: 'promptRegistered',
+    // Send registration notification to both client and MCP
+    sendNotification(ws, channelPath, 'promptRegistered', {
         name,
         promptId
-    }));
+    });
 
     console.error(`Prompt registered: ${promptId}`);
 }
@@ -535,11 +542,11 @@ function handleRegisterResource(ws, channelPath, data) {
         originalName: name
     };
 
-    ws.send(JSON.stringify({
-        type: 'resourceRegistered',
+    // Send registration notification to both client and MCP
+    sendNotification(ws, channelPath, 'resourceRegistered', {
         name,
         resourceId
-    }));
+    });
 
     console.error(`Resource registered: ${resourceId}`);
 }
@@ -861,9 +868,6 @@ function handleGetPrompt(ws, callerChannel, data) {
 function handleReadResource(ws, callerChannel, data) {
     const {id, uri} = data;
 
-    // Special handling if the caller is on the MCP path
-    const isMcpClient = (callerChannel === MCP_PATH);
-
     // Find the resource that matches this URI
     let targetChannel;
     let resourceName;
@@ -1154,10 +1158,6 @@ function handleCreateSamplingMessage(ws, callerChannel, data) {
     console.error(`Sampling request forwarded to channel: ${targetChannel}`);
 }
 
-// Function to generate a secure random token
-function generateToken() {
-    return crypto.randomBytes(16).toString('hex');
-}
 
 // Function to decode a base64 encoded channel-token pair
 function decodeChannelTokenPair(encodedPair) {
@@ -1194,7 +1194,7 @@ async function authorizeChannelToken(encodedPair) {
     }
 
     // Add to authorized tokens
-    authorizedTokens[channel] = token;
+    setToken(channel, token);
     await saveAuthorizedTokens();
 
     return {
@@ -1203,38 +1203,6 @@ async function authorizeChannelToken(encodedPair) {
         channel,
         token
     };
-}
-
-// Function to save server token to .env file
-async function saveServerTokenToEnv(token) {
-    try {
-        let envContent = '';
-
-        try {
-            // Try to read existing .env file
-            envContent = await fs.readFile(ENV_FILE, 'utf8');
-
-            // Check if WEBMCP_SERVER_TOKEN is already defined
-            if (envContent.includes('WEBMCP_SERVER_TOKEN=')) {
-                // Replace the existing token
-                envContent = envContent.replace(/WEBMCP_SERVER_TOKEN=.*(\r?\n|$)/g, `WEBMCP_SERVER_TOKEN=${token}$1`);
-            } else {
-                // Add the token to the end
-                envContent += `\nWEBMCP_SERVER_TOKEN=${token}\n`;
-            }
-        } catch (err) {
-            // File doesn't exist, create new content
-            envContent = `WEBMCP_SERVER_TOKEN=${token}\n`;
-        }
-
-        // Write the content to the .env file
-        await fs.writeFile(ENV_FILE, envContent, 'utf8');
-        console.error(`Server token saved to ${ENV_FILE}`);
-        return true;
-    } catch (error) {
-        console.error('Error saving server token to .env file:', error);
-        return false;
-    }
 }
 
 // Function to check if server is already running
@@ -1272,27 +1240,31 @@ async function savePid() {
 }
 
 // Function to run the server in the background
-function daemonize() {
-    // If we're already a daemon, just continue
-    if (process.env.WEBMCP_DAEMON === 'true') {
-        return true;
-    }
-
+async function daemonize() {
     // Fork a new process that will become the daemon
     const args = process.argv.slice(2);
 
-    // Add flag to prevent infinite forking
-    const child = fork(process.argv[1], [...args], {
+    // Make sure the --forked flag is included
+    if (!args.includes('--forked')) {
+        args.push('--forked');
+    }
+
+    // Create a detached child process
+    const child = fork(process.argv[1], args, {
         detached: true,
-        stdio: 'ignore',
-        env: {...process.env, WEBMCP_DAEMON: 'true'}
+        stdio: 'ignore'
     });
 
     // Detach the child process so it can run independently
     child.unref();
 
-    console.log(`Server started as daemon with PID: ${child.pid}`);
-    process.exit(0);
+    console.error(`Server started as daemon with PID: ${child.pid}`);
+    console.error(`Use 'node websocket-server.js --quit' to stop the server`);
+    console.error(`Use 'node websocket-server.js --new <encoded-pair>' to authorize a channel-token pair`);
+    console.error(`Put 'npx @jason.today/webmcp --mcp' in your mcp client config`);
+    if (!CONFIG.startMCP) {
+        process.exit(0);
+    }
 }
 
 const parseArgs = () => {
@@ -1303,7 +1275,7 @@ const parseArgs = () => {
     let startMCP = false;
     let cleanTokens = false;
     let encodedPair = null;
-    let daemon = !process.env.WEBMCP_DAEMON; // Default to daemonize unless already a daemon
+    let daemon = true; // Default to daemonize
 
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
@@ -1336,6 +1308,9 @@ const parseArgs = () => {
             cleanTokens = true;
         } else if (arg === '-f' || arg === '--foreground') {
             daemon = false;
+        } else if (arg === '-f' || arg === '--forked') {
+            // This is an internal flag to indicate we're the forked child                                                                                                   │ │
+            // No need to do anything with it here, just don't error on it
         } else {
             console.error(`Error: Unknown option: ${arg}`);
             showHelp();
@@ -1370,7 +1345,7 @@ const main = async () => {
     // Load authorized tokens from disk
     await loadAuthorizedTokens();
 
-    CONFIG = parseArgs();
+    setConfig(parseArgs());
 
     // Check if server is already running
     const serverStatus = await isServerRunning();
@@ -1378,7 +1353,7 @@ const main = async () => {
     // Handle clean tokens command
     if (CONFIG.cleanTokens) {
         console.log(`Removing all authorized tokens...`);
-        authorizedTokens = {};
+        clearTokens();
         await saveAuthorizedTokens();
         console.log(`All tokens have been removed. Tokens file cleared.`);
 
@@ -1406,52 +1381,16 @@ const main = async () => {
         process.exit(0);
     }
 
-    // Handle starting MCP
-    if (CONFIG.startMCP) {
-      await runMcpServer(serverToken).catch((error) => {
-          console.error("Fatal error in main():", error);
-          process.exit(1);
-      });
-      process.exit(0);
-    }
-
     // Handle new token generation
     if (CONFIG.newToken) {
-        // Generate a random token for registration
-        const token = generateToken();
-
-        // Create a connection object with server address and token
-        const address = `${HOST}:${CONFIG.port}`;
-        const serverAddress = `ws://${address}`;
-        const connectionData = {
-            server: serverAddress,
-            token: token
-        };
-
-        // Convert to JSON and base64 encode
-        const jsonStr = JSON.stringify(connectionData);
-        const encodedData = Buffer.from(jsonStr).toString('base64');
-
+        const encodedData = await generateNewRegistrationToken();
         console.log(`\nCONNECTION TOKEN (paste this in your web client):`);
         console.log(`${encodedData}\n`);
 
-        authorizedTokens[formatChannel(address)] = token;
-        await saveAuthorizedTokens();
-
         // If server is running, exit
         if (serverStatus.running) {
-            console.log(`Server is running with PID: ${serverStatus.pid}`);
             process.exit(0);
         }
-    }
-
-    // If server is already running and we're not authorizing a token, just show status and exit
-    if (serverStatus.running) {
-        console.log(`Server is already running with PID: ${serverStatus.pid}`);
-        console.log(`Use 'node websocket-server.js --quit' to stop the server`);
-        console.log(`Use 'node websocket-server.js --new <encoded-pair>' to authorize a channel-token pair`);
-        console.log(`Put 'npx @jason.today/webmcp --mcp' in your mcp client config`);
-        process.exit(0);
     }
 
     // Check if we have a server token, generate one if not
@@ -1462,11 +1401,31 @@ const main = async () => {
         // console.log(`New server token: "${serverToken}". Saved to .env`);
     }
 
-    // Daemonize if requested
-    if (CONFIG.daemon) {
-        return daemonize();
+    // If server is already running and we're not authorizing a token, just show status and exit
+    if (serverStatus.running) {
+        console.error(`Server is already running with PID: ${serverStatus.pid}`);
+        console.error(`Use 'node websocket-server.js --quit' to stop the server`);
+        console.error(`Use 'node websocket-server.js --new <encoded-pair>' to authorize a channel-token pair`);
+        console.error(`Put 'npx @jason.today/webmcp --mcp' in your mcp client config`);
+        if (CONFIG.startMCP) {
+            return;
+        } else {
+            process.exit(0);
+        }
     }
 
+    // Daemonize if requested
+    if (CONFIG.daemon) {
+        // We need to add a marker to args to prevent fork bombs
+        // If we already have the --forked flag, we're in the child process and should continue
+        if (!process.argv.includes('--forked')) {
+            // Add the --forked flag to the arguments before daemonizing
+            process.argv.push('--forked');
+            return daemonize();
+        }
+    }
+
+    // If we have the --forked flag, we're already the daemon, continue execution
     // Save PID file
     await savePid();
 
@@ -1474,11 +1433,10 @@ const main = async () => {
     const PORT = CONFIG.port;
     httpServer.listen(PORT, () => {
         console.error(`WebSocket server running at http://${HOST}:${PORT}`);
-        console.log(`WebSocket server running at http://${HOST}:${PORT}`);
-        console.log(`Server has ${Object.keys(authorizedTokens).length} authorized channels`);
-        console.log(`WebMCP client token (for MCP path): ${serverToken}`);
-        console.log(`WebMCP client URL: ws://${HOST}:${PORT}${MCP_PATH}?token=${serverToken}`);
-        console.log(`Use 'node websocket-server.js --new <encoded-pair>' to authorize a channel-token pair`);
+        console.error(`WebSocket server running at http://${HOST}:${PORT}`);
+        console.error(`WebMCP client token (for MCP path): ${serverToken}`);
+        console.error(`WebMCP client URL: ws://${HOST}:${PORT}${MCP_PATH}?token=${serverToken}`);
+        console.error(`Use 'node websocket-server.js --new <encoded-pair>' to authorize a channel-token pair`);
     });
 
     // Handle graceful shutdown
@@ -1534,4 +1492,15 @@ const main = async () => {
 main().catch(error => {
     console.error('Error in main:', error);
     process.exit(1);
+}).then(() => {
+    // Handle starting MCP
+    if (CONFIG.startMCP) {
+        setTimeout(() => {
+            console.error("Starting up MCP Server")
+            runMcpServer(serverToken).catch((error) => {
+                console.error("Fatal error in main():", error);
+                process.exit(1);
+            });
+        }, 100);
+    }
 });

@@ -9,7 +9,7 @@ const CONFIG_DIR = path.join(os.homedir(), '.webmcp');
 // Ensure config directory exists
 const ensureConfigDir = async () => {
     try {
-        await fs.mkdir(CONFIG_DIR, { recursive: true });
+        await fs.mkdir(CONFIG_DIR, {recursive: true});
     } catch (error) {
         console.error(`Error creating config directory at ${CONFIG_DIR}:`, error);
     }
@@ -28,10 +28,28 @@ dotenv.config({path: ENV_FILE});
 // Server token for MCP authentication
 const SERVER_TOKEN = process.env.WEBMCP_SERVER_TOKEN || '';
 
+const HOST = "localhost";
+
+const CONFIG = {};
+
+function setConfig(args) {
+    Object.entries(args).forEach(([key, value]) => {
+        CONFIG[key] = value;
+    });
+}
+
+function formatChannel(channel) {
+    return `/${channel.replace(/[.:]/g, '_')}`
+}
+
 export {
-  PID_FILE,
-  ENV_FILE,
-  TOKENS_FILE,
-  SERVER_TOKEN,
-  ensureConfigDir,
+    CONFIG,
+    HOST,
+    PID_FILE,
+    ENV_FILE,
+    TOKENS_FILE,
+    SERVER_TOKEN,
+    ensureConfigDir,
+    formatChannel,
+    setConfig,
 };
