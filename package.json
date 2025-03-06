@@ -4,7 +4,7 @@
   "description": "WebSocket-based Model Context Protocol implementation",
   "main": "src/websocket-server.js",
   "bin": {
-    "webmcp": "build/index.js"
+    "@jason.today/webmcp": "./build/index.js"
   },
   "repository": {
     "type": "git",
@@ -12,14 +12,12 @@
   },
   "author": "Jason McGhee",
   "scripts": {
-    "start-ws-server": "node src/websocket-server.js",
     "start-daemon": "node src/websocket-server.js",
     "stop-daemon": "node src/websocket-server.js --quit",
-    "start-mcp-client": "node src/server.js",
+    "start-mcp-client": "node src/websocket-server.js --mcp",
     "start-foreground": "node src/websocket-server.js --foreground",
     "authorize": "node src/websocket-server.js --new",
     "build": "node build.js",
-    "postinstall": "mkdir -p ~/.webmcp && cp build/server.cjs ~/.webmcp/",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "license": "MIT",

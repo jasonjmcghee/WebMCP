@@ -12,16 +12,6 @@ import {
     ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
 
-// Server token for MCP authentication
-const serverToken = process.env.WEBMCP_SERVER_TOKEN;
-
-// Check if server token is set
-if (!serverToken) {
-    console.error('ERROR: WEBMCP_SERVER_TOKEN not found in environment variables.');
-    console.error('Please run the WebSocket server first to generate a token.');
-    process.exit(1);
-}
-
 // Create a central MCP server that communicates over stdio
 const mcpServer = new Server(
     {
@@ -196,7 +186,7 @@ function handleWebSocketMessage(message) {
 }
 
 // Function to connect to the WebSocket server
-function connectToWebSocketServer() {
+function connectToWebSocketServer(serverToken) {
     // Connect to the MCP path directly with server token
     const serverUrl = `ws://localhost:4797${MCP_PATH}?token=${serverToken}`;
 
@@ -581,15 +571,12 @@ mcpServer.setRequestHandler(CreateMessageRequestSchema, async (request) => {
     }
 });
 
-async function main() {
+async function runMcpServer(serverToken) {
     // Connect to the WebSocket server
-    connectToWebSocketServer();
+    connectToWebSocketServer(serverToken);
     const transport = new StdioServerTransport();
     await mcpServer.connect(transport);
     console.error("MCP server running with stdio transport");
 }
 
-main().catch((error) => {
-    console.error("Fatal error in main():", error);
-    process.exit(1);
-});
+export { runMcpServer };

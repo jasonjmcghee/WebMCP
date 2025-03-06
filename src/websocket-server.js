@@ -1,38 +1,18 @@
 import * as fs from 'fs/promises';
-import * as path from 'path';
 import * as crypto from 'crypto';
-import * as dotenv from 'dotenv';
-import * as os from 'os';
 import {WebSocketServer} from 'ws';
 import {createServer} from 'http';
 import {parse} from 'url';
 import {fork} from 'child_process';
+import {runMcpServer} from './server.js';
+import {PID_FILE,TOKENS_FILE,SERVER_TOKEN,ensureConfigDir} from './config.js';
 
-// Create config directory in user's home folder
-const CONFIG_DIR = path.join(os.homedir(), '.webmcp');
-
-// Ensure config directory exists
-const ensureConfigDir = async () => {
-    try {
-        await fs.mkdir(CONFIG_DIR, { recursive: true });
-    } catch (error) {
-        console.error(`Error creating config directory at ${CONFIG_DIR}:`, error);
-    }
-};
-
-// Process ID file path
-const PID_FILE = path.join(CONFIG_DIR, '.webmcp-server.pid');
-// Environment file path
-const ENV_FILE = path.join(CONFIG_DIR, '.env');
-// Tokens file path
-const TOKENS_FILE = path.join(CONFIG_DIR, '.webmcp-tokens.json');
+let serverToken = SERVER_TOKEN;
 
 const HOST = "localhost";
+
 // Updated later...
 let CONFIG = {};
-
-// Load environment variables
-dotenv.config({path: ENV_FILE});
 
 // Create HTTP server with CORS headers
 const httpServer = createServer((req, res) => {
@@ -76,9 +56,6 @@ let requestIdCounter = 1;
 
 // Map to store pending requests
 const pendingRequests = {};
-
-// Server master token (never shared, used to authenticate admin commands)
-let serverToken = process.env.WEBMCP_SERVER_TOKEN || '';
 
 // Authorized channel-token pairs - Only channels with valid tokens can connect
 // Format: { "/channel1": "token123" }
@@ -1323,6 +1300,7 @@ const parseArgs = () => {
     let port = 4797; // Default port
     let quit = false;
     let newToken = false;
+    let startMCP = false;
     let cleanTokens = false;
     let encodedPair = null;
     let daemon = !process.env.WEBMCP_DAEMON; // Default to daemonize unless already a daemon
@@ -1352,7 +1330,8 @@ const parseArgs = () => {
             quit = true;
         } else if (arg === '-n' || arg === '--new') {
             newToken = true;
-            // No need for encoded pair, we'll generate it
+        } else if (arg === '-m' || arg === '--mcp') {
+            startMCP = true;
         } else if (arg === '-c' || arg === '--clean') {
             cleanTokens = true;
         } else if (arg === '-f' || arg === '--foreground') {
@@ -1364,7 +1343,7 @@ const parseArgs = () => {
         }
     }
 
-    return {port, quit, newToken, cleanTokens, encodedPair, daemon};
+    return {port, quit, newToken, cleanTokens, encodedPair, daemon, startMCP};
 };
 
 const showHelp = () => {
@@ -1427,6 +1406,15 @@ const main = async () => {
         process.exit(0);
     }
 
+    // Handle starting MCP
+    if (CONFIG.startMCP) {
+      await runMcpServer(serverToken).catch((error) => {
+          console.error("Fatal error in main():", error);
+          process.exit(1);
+      });
+      process.exit(0);
+    }
+
     // Handle new token generation
     if (CONFIG.newToken) {
         // Generate a random token for registration
@@ -1462,15 +1450,16 @@ const main = async () => {
         console.log(`Server is already running with PID: ${serverStatus.pid}`);
         console.log(`Use 'node websocket-server.js --quit' to stop the server`);
         console.log(`Use 'node websocket-server.js --new <encoded-pair>' to authorize a channel-token pair`);
+        console.log(`Put 'npx @jason.today/webmcp --mcp' in your mcp client config`);
         process.exit(0);
     }
 
     // Check if we have a server token, generate one if not
     if (!serverToken) {
-        console.log('No server token found, generating a new one...');
+        // console.log('No server token found, generating a new one...');
         serverToken = generateToken();
         await saveServerTokenToEnv(serverToken);
-        console.log(`New server token: "${serverToken}". Saved to .env`);
+        // console.log(`New server token: "${serverToken}". Saved to .env`);
     }
 
     // Daemonize if requested

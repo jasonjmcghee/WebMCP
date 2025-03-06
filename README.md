@@ -22,7 +22,7 @@ _The look, feel, how it's used, and security are all absolutely open for contrib
 https://github.com/user-attachments/assets/43ad160a-846d-48ad-9af9-f6d537e78473
 
 
-## Getting started (add WebMCP to your website)
+## Getting started (adding WebMCP to your website)
 
 To use WebMCP, simply include [`webmcp.js`](https://github.com/jasonjmcghee/WebMCP/releases) on your page (via src or directly):
 
@@ -33,7 +33,7 @@ To use WebMCP, simply include [`webmcp.js`](https://github.com/jasonjmcghee/WebM
 The WebMCP widget will automatically initialize and appear in the bottom right corner of your page.
 
 
-## Getting started (your LLM + websites using WebMCP)
+## Getting started (using your LLM with websites using WebMCP)
 
 Install + start the server (it's a daemon, so you can start it anywhere)
 
@@ -41,9 +41,22 @@ Install + start the server (it's a daemon, so you can start it anywhere)
 npx @jason.today/webmcp
 ```
 
-The first time this happens, it will initialize a `.env` file in `~/.webmcp` which contains `WEBMCP_SERVER_TOKEN`.
+Update your MCP client's config to execute the mcp server by passing `--mcp` to the main binary.
 
-Update your MCP client's config to point at `~/.webmcp/server.cjs`. This file is automatically copied to that location during installation. Add `WEBMCP_SERVER_TOKEN` with its value as an environment variable.
+For example, in claude desktop config:
+
+```json
+{
+  "mcpServers": {
+    "webmcp": {
+      "command": "npx",
+      "args": [
+        "npx @jason.today/webmcp --mcp"
+      ]
+    }
+  }
+}
+```
 
 When you're ready to connect to a website, it'll ask you for a token. This is how you generate one.
 (If your server was not running, this will also start it.)
@@ -62,7 +75,7 @@ For more information on the server, feel free to run:
 npx @jason.today/webmcp --help
 ```
 
-All configuration files (tokens, `.env`, server PID) are now stored in `~/.webmcp` directory, making it easy to maintain state between sessions. The MCP server file is also copied to this directory during installation, so you can reference it directly in your MCP client configuration.
+All configuration files are stored in `~/.webmcp` directory.
 
 ## How It Works
 
