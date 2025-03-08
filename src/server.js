@@ -339,9 +339,9 @@ mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
                         type: "string",
                         description: "Provides a clear and concise description of the tool and what it is used for."
                     },
-                    parameters: {
+                    inputSchema: {
                         type: "object",
-                        description: "The parameters required or optional for the tool.",
+                        description: "The inputSchema required or optional for the tool.",
                         properties: {
                             type: {
                                 type: "string",
@@ -384,7 +384,7 @@ mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
                         required: ["type", "description", "properties"]
                     }
                 },
-                required: ["name", "description", "parameters"]
+                required: ["name", "description", "inputSchema"]
             },
         }
     ];
