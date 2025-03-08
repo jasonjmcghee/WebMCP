@@ -89,3 +89,9 @@ All configuration files are stored in `~/.webmcp` directory.
 
 This is a super early project. I'm very interested in hardening security to prevent malicious extensions etc. from being
 able to perform prompt injection attacks and similar. If you have constructive ideas, please reach out or open an issue.
+
+## Built in tools
+
+- Token generator (for connecting to WebMCP websites)
+- Tool Definer (to simplify building the schema of a tool)
+  - You can ask for the javascript in a follow-up message
