@@ -254,7 +254,7 @@ ${await generateNewRegistrationToken()}`,
         };
     }
 
-    if (request.params.name === "_webmcp_define-tool") {
+    if (request.params.name === "_webmcp_define-mcp-tool") {
         return {
             content: [{
                 type: "text",
@@ -325,7 +325,8 @@ mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
         },
         {
             name: "_webmcp_define-mcp-tool",
-            description: "Used to define an 'mcp tool'. Only use this if the user specifically asks for an mcp tool.",
+            description: "Used to define an 'mcp tool'. Only use this if the user specifically asks for an mcp tool. " +
+                "A webmcp token is not required for this.",
             inputSchema: {
                 type: "object",
                 description: "The schema which describes the tool.",
