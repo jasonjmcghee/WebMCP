@@ -324,10 +324,8 @@ mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
             },
         },
         {
-            name: "_webmcp_define-tool",
-            description: "Used to define a tool, sometimes referred to as an 'mcp tool'. The user may ask to " +
-                "implement a 'function' or 'method' in a follow up question, and they are likely " +
-                "looking for javascript code, unless they tell you otherwise.",
+            name: "_webmcp_define-mcp-tool",
+            description: "Used to define an 'mcp tool'. Only use this if the user specifically asks for an mcp tool.",
             inputSchema: {
                 type: "object",
                 description: "The schema which describes the tool.",
