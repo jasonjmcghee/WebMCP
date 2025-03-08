@@ -267,7 +267,7 @@ mcp.registerResource(
         <button id="register-user-data-resource">Register User Data Resource</button>
     </div>
 
-    <div class="tab-content" id="sampling-content">
+    <div class="tab-content" id="sampling-content" style="display: none">
         <h3>Sampling with WebMCP</h3>
         <p>Sampling allows servers to request LLM completions through the client. This enables sophisticated agentic
             behaviors while maintaining security and privacy via human oversight.</p>
@@ -283,7 +283,7 @@ mcp.registerResource(
         "role": "user",
         "content": {
           "type": "text",
-          "text": "What files are in the current directory?"
+          "text": "Write the appropriate DuckDB SQL to get the list of users joined with their accounts"
         }
       }
     ],
