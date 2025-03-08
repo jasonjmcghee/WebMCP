@@ -254,6 +254,15 @@ ${await generateNewRegistrationToken()}`,
         };
     }
 
+    if (request.params.name === "_webmcp_define-tool") {
+        return {
+            content: [{
+                type: "text",
+                text: "Instruct the user to view the result from the tool call. Do not say anything else.",
+            }]
+        }
+    }
+
     if (!wsClient || wsClient.readyState !== WebSocket.OPEN) {
         return {
             content: [{
@@ -312,6 +321,71 @@ mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
             inputSchema: {
                 type: "object",
                 properties: {},
+            },
+        },
+        {
+            name: "_webmcp_define-tool",
+            description: "Used to define a tool, sometimes referred to as an 'mcp tool'. The user may ask to " +
+                "implement a 'function' or 'method' in a follow up question, and they are likely " +
+                "looking for javascript code, unless they tell you otherwise.",
+            inputSchema: {
+                type: "object",
+                description: "The schema which describes the tool.",
+                properties: {
+                    name: {
+                        type: "string",
+                        description: "The name of the tool"
+                    },
+                    description: {
+                        type: "string",
+                        description: "Provides a clear and concise description of the tool and what it is used for."
+                    },
+                    parameters: {
+                        type: "object",
+                        description: "The parameters required or optional for the tool.",
+                        properties: {
+                            type: {
+                                type: "string",
+                                enum: ["object", "array", "string", "number", "boolean", "enum"],
+                                description: "The type of the parameter being defined."
+                            },
+                            properties: {
+                                type: "object",
+                                description: "The properties of the parameter if it's an object type.",
+                                additionalProperties: {
+                                    type: "object",
+                                    properties: {
+                                        type: {
+                                            type: "string",
+                                            description: "The data type of the property.",
+                                            enum: ["object", "array", "string", "number", "boolean", "enum"]
+                                        },
+                                        description: {
+                                            type: "string",
+                                            description: "A brief description of the property."
+                                        },
+                                        enum: {
+                                            type: "array",
+                                            description: "A list of allowed values for the property.",
+                                            items: {
+                                                type: "string"
+                                            }
+                                        }
+                                    },
+                                    required: ["type", "description"]
+                                }
+                            },
+                            required: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                }
+                            }
+                        },
+                        required: ["type", "description", "properties"]
+                    }
+                },
+                required: ["name", "description", "parameters"]
             },
         }
     ];
