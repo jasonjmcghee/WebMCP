@@ -1,6 +1,6 @@
 {
   "name": "@jason.today/webmcp",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "WebSocket-based Model Context Protocol implementation",
   "main": "src/websocket-server.js",
   "bin": {
