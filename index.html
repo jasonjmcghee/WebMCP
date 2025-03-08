@@ -90,7 +90,7 @@
 
 <div class="demo-section">
     <h2>About WebMCP</h2>
-    <p>WebMCP is a JavaScript library that allows any website to integrate with the Model Context Protocol.
+    <p>WebMCP is an <a href="https://github.com/jasonjmcghee/WebMCP">open source</a> JavaScript library that allows any website to integrate with the Model Context Protocol.
         It provides a small widget in the corner of your page that allows users to interact with your webpage via LLM or
         agent.</p>
     <p>The widget appears as a small blue square in the bottom right corner. Click it to begin, and connect using a
@@ -101,7 +101,20 @@
     <h2>Connect to this site (or any site that uses WebMCP)</h2>
     <p>To use the WebMCP features on a website, you need to:</p>
     <ol>
-        <li>Make sure you have an <a href="https://claude.ai/download"></a>MCP Client</a> and <a href="https://github.com/jasonjmcghee/WebMCP/blob/main/README.md#getting-started-your-llm--websites-using-webmcp">configure</a> it</li>
+        <li>Make sure you have an <a href="https://claude.ai/download">MCP Client</a> and <a href="https://github.com/jasonjmcghee/WebMCP/blob/main/README.md#getting-started-your-llm--websites-using-webmcp">configure</a> it</li>
+        <p>If you're using Claude Desktop, you just need to add the MCP server to your configuration, found in Settings > Developer > Edit Config</p>
+        <pre><code>{
+  "mcpServers": {
+    "webmcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@jason.today/webmcp@latest",
+        "--mcp"
+      ]
+    }
+  }
+}</code></pre>
         <li>Start your MCP client and ask it to make a webmcp token</code></li>
         <li>Click the blue square in the corner and paste the token</li>
         <li>If you're using Claude Desktop and/or don't see tools immediately appear, restart your MCP client. (hopefully all MCP client will support tool changes soon!)</li>
