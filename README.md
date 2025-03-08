@@ -2,7 +2,7 @@
 
 A proposal and code for websites to support client side LLMs
 
-![NPM Version](https://img.shields.io/npm/v/%40jason.today%2Fwebmcp) ![MIT licensed](https://img.shields.io/npm/l/%40jason.today%2Fwebmcp)
+[![NPM Version](https://img.shields.io/npm/v/%40jason.today%2Fwebmcp)](https://www.npmjs.com/package/@jason.today/webmcp) [![MIT licensed](https://img.shields.io/npm/l/%40jason.today%2Fwebmcp)](./LICENSE)
 
 WebMCP allows websites to share tools, resources, prompts, etc. to LLMs. In other words, WebMCP allows a website to be an MCP server. No sharing API Keys. Use any model you want.
 
