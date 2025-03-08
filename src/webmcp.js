@@ -959,12 +959,16 @@ class WebMCP {
 
             if (!skipRegistration) {
                 // First register with server
-                const registered = await this._registerWithServer(connectionToken);
+                const response = await this._registerWithServer(connectionToken);
 
-                if (!registered) {
+                if (!response.token) {
                     this._updateStatus('disconnected', 'Registration failed');
                     return;
                 }
+
+                // Save the new token
+                connectionInfo.token = response.token;
+                this.currentToken = response.token;
 
                 sessionStorage.setItem(this.SESSION_STORAGE_KEY, JSON.stringify(connectionInfo));
             }
@@ -1055,7 +1059,7 @@ class WebMCP {
      * Register with server using connection token
      * @private
      * @param {string} encodedToken - The encoded connection token
-     * @returns {Promise<boolean>} - Resolves to true if registration was successful
+     * @returns {Promise<{ token: string }>} - Resolves to true if registration was successful
      */
     _registerWithServer(encodedToken) {
         // Update UI
@@ -1081,11 +1085,11 @@ class WebMCP {
                 try {
                     const message = JSON.parse(event.data);
 
-                    if (message.type === 'registerSuccess') {
+                    if (message.type === 'registerSuccess' && message.token) {
                         console.log(`Registration successful: ${message.message}`);
 
                         // Registration complete, can now connect to channel
-                        resolve(true);
+                        resolve({ token: message.token });
                     } else if (message.type === 'error') {
                         console.error(`Registration failed: ${message.message}`);
                         this._updateStatus('disconnected', `Registration failed: ${message.message}`);

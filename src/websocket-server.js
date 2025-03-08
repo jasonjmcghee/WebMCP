@@ -223,20 +223,23 @@ wss.on('connection', (ws, req) => {
                     return;
                 }
 
-                // Authorize the channel-token pair
-                setToken(channelPath, token);
+                // Throw away registration token and make a session token.
                 deleteToken(serverChannel);
-                await saveAuthorizedTokens();
+                const sessionToken = generateToken();
 
-                console.error(`Registered channel: ${channelPath} with token: ${token}`);
+                // Authorize the channel-token pair
+                setToken(channelPath, sessionToken);
+                await saveAuthorizedTokens();
 
                 // Send success response
                 ws.send(JSON.stringify({
                     type: 'registerSuccess',
                     channel: channelPath,
                     message: `Registration successful for ${channelPath}`,
-                    token: token
+                    token: sessionToken
                 }));
+
+                console.error(`Registered channel: ${channelPath} with token: ${token}`);
 
                 // Close the registration connection - they'll reconnect to their channel
                 ws.close(1000, 'Registration complete');
