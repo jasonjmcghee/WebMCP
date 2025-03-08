@@ -17,7 +17,7 @@ import {generateNewRegistrationToken, generateToken} from "./tokens.js";
 const mcpServer = new Server(
     {
         name: "WebMCP",
-        version: "0.1.8",
+        version: "0.1.9",
     },
     {
         capabilities: {

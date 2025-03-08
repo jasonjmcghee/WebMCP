@@ -68,7 +68,7 @@ If you'd rather your model / service never see the token, you can manually execu
 
 Some MCP clients, including Claude Desktop, need to be restarted to get access to new tools. (at least at time of writing)
 
-To disconnect, you can close the browser tab, click "disconnect", or shut down the server.
+To disconnect, you can close the browser tab, click "disconnect", or shut down the server with `npx @jason.today/webmcp -q`.
 
 All configuration files are stored in `~/.webmcp` directory.
 
@@ -93,5 +93,5 @@ able to perform prompt injection attacks and similar. If you have constructive i
 ## Built in tools
 
 - Token generator (for connecting to WebMCP websites)
-- Tool Definer (to simplify building the schema of a tool)
-  - You can ask for the javascript in a follow-up message
+- MCP Tool Definer (to simplify building the schema of a tool for use with MCP)
+  - You can ask for the javascript (if relevant) in a follow-up message for use with WebMCP
