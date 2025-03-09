@@ -14,30 +14,23 @@ _The look, feel, how it's used, and security are all absolutely open for contrib
 
 An end-user can connect to any number of websites at a time - and tools are "scoped" (by name) based on the domain to simplify organization.
 
-# Demo (Sound on 🔊)
-
-### Super Quick Demo (20 seconds)
+### Super Quick Demo (20 seconds, Sound on 🔊)
 
 https://github.com/user-attachments/assets/61229470-1242-401e-a7d9-c0d762d7b519
 
-
-### Full Demo (3 minutes)
-
-https://github.com/user-attachments/assets/43ad160a-846d-48ad-9af9-f6d537e78473
-
-
-## Getting started (adding WebMCP to your website)
-
-To use WebMCP, simply include [`webmcp.js`](https://github.com/jasonjmcghee/WebMCP/releases) on your page (via src or directly):
-
-```
-<script src="webmcp.js"></script>
-```
-
-The WebMCP widget will automatically initialize and appear in the bottom right corner of your page. Clicking on it will ask for a webmcp token which the end-user will generate.
-
-
 ## Getting started (using your LLM with websites using WebMCP)
+
+#### Automatic Setup with [Smithery](https://smithery.ai/server/@jasonjmcghee/webmcp)
+
+You can specify any client smithery supports (claude, cursor, windsurf, cline, witsy, enconvo, goose, etc.)
+
+```bash
+npx -y @smithery/cli install @jasonjmcghee/webmcp --client claude
+```
+
+Note that this seems to take a couple seconds longer to detect the tools on startup.
+
+#### Manually Setup of MCP Client Config
 
 Update your MCP client's config to execute the mcp server by passing `--mcp` to the main binary.
 
@@ -71,6 +64,20 @@ Some MCP clients, including Claude Desktop, need to be restarted to get access t
 To disconnect, you can close the browser tab, click "disconnect", or shut down the server with `npx @jason.today/webmcp -q`.
 
 All configuration files are stored in `~/.webmcp` directory.
+
+## Getting started (adding WebMCP to your website)
+
+To use WebMCP, simply include [`webmcp.js`](https://github.com/jasonjmcghee/WebMCP/releases) on your page (via src or directly):
+
+```
+<script src="webmcp.js"></script>
+```
+
+The WebMCP widget will automatically initialize and appear in the bottom right corner of your page. Clicking on it will ask for a webmcp token which the end-user will generate.
+
+### Full Demo (3 minutes)
+
+https://github.com/user-attachments/assets/43ad160a-846d-48ad-9af9-f6d537e78473
 
 ## More Info About How It Works
 
