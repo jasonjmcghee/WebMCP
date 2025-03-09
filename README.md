@@ -30,7 +30,7 @@ npx -y @jason.today/webmcp@latest --config claude
 
 _If you're interested in setting it up manually, use the command `npx -y @jason.today/webmcp@latest --mcp`._
 
-_Auto-install was inspired by Smithery, but their code is AGPL so I wrote this myself. If you don't see your mcp client , please let me know what the config path is, and I'll add it._
+_Auto-install was inspired by Smithery, but their code is AGPL so I wrote this myself. If it doesn't work for you or you don't see your mcp client, please file an issue._
 
 #### Using WebMCP
 
