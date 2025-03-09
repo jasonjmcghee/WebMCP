@@ -20,40 +20,19 @@ https://github.com/user-attachments/assets/61229470-1242-401e-a7d9-c0d762d7b519
 
 ## Getting started (using your LLM with websites using WebMCP)
 
-#### Automatic Setup with [Smithery](https://smithery.ai/server/@jasonjmcghee/webmcp)
+#### Installation
 
-_I am not associated with Smithery and have no control over their binary. My understanding is that it is opt-in, but it may send analytics / telemetry to them. If you have any concerns with this, there's manual installation instructions directly below._
-
-Just specify your client that smithery supports (`claude`, `cursor`, `windsurf`, `cline`, `witsy`, `enconvo`, `goose`, etc.)
+Just specify your MCP client (`claude`, `cursor`, `cline`, `windsurf`, or a path to json)
 
 ```bash
-npx -y @smithery/cli install @jasonjmcghee/webmcp --client claude
+npx -y @jason.today/webmcp@latest --config claude
 ```
 
-Note that this seems to take a couple seconds longer to detect the tools on startup.
+_If you're interested in setting it up manually, use the command `npx -y @jason.today/webmcp@latest --mcp`._
 
-#### Manually Setup of MCP Client Config
+_Auto-install was inspired by Smithery, but their code is AGPL so I wrote this myself. If you don't see your mcp client , please let me know what the config path is, and I'll add it._
 
-Update your MCP client's config to execute the mcp server by passing `--mcp` to the main binary.
-
-_By adding `-y` and `@latest` as demonstrated below, it will also auto-install and auto-update. Otherwise, you'll need to manually execute the command `npx @jason.today/webmcp` first._
-
-For example, in claude desktop config:
-
-```json
-{
-  "mcpServers": {
-    "webmcp": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@jason.today/webmcp@latest",
-        "--mcp"
-      ]
-    }
-  }
-}
-```
+#### Using WebMCP
 
 When you're ready to connect to a website, you can ask your model to generate you an mcp token.
 

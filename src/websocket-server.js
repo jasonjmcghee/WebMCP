@@ -20,7 +20,7 @@ import {
     SERVER_TOKEN,
     ensureConfigDir,
     formatChannel,
-    setConfig,
+    setConfig, configureMcpClient, configureMcpClientWithPath, availableClientConfigs,
 } from './config.js';
 
 let serverToken = SERVER_TOKEN;
@@ -1275,7 +1275,7 @@ async function daemonize() {
     }
 }
 
-const parseArgs = () => {
+const parseArgs = async () => {
     const args = process.argv.slice(2);
     let port = 4797; // Default port
     let quit = false;
@@ -1304,6 +1304,20 @@ const parseArgs = () => {
                 i++; // Skip the next argument as we've already processed it
             } else {
                 console.error('Error: Port option requires a value');
+                showHelp();
+                process.exit(1);
+            }
+        } else if (arg === '--config') {
+            if (i + 1 < args.length) {
+                const config = args[i + 1];
+                if (availableClientConfigs[config]) {
+                    await configureMcpClient(config)
+                } else {
+                    await configureMcpClientWithPath(config)
+                }
+                i++; // Skip the next argument as we've already processed it
+            } else {
+                console.error('Error: Config option requires a mcp client type or path to json');
                 showHelp();
                 process.exit(1);
             }
@@ -1358,7 +1372,7 @@ const main = async () => {
     // Load authorized tokens from disk
     await loadAuthorizedTokens();
 
-    setConfig(parseArgs());
+    setConfig(await parseArgs());
 
     // Check if server is already running
     const serverStatus = await isServerRunning();
