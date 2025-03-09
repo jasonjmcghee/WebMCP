@@ -18,7 +18,7 @@ import {CONFIG} from "./config.js";
 const mcpServer = new Server(
     {
         name: "WebMCP",
-        version: "0.1.10",
+        version: "0.1.11",
     },
     {
         capabilities: {
