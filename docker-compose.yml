@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  webmcp:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - ./:/app
+    ports:
+      - "4797:4797"
+    command: npx -y @jason.today/webmcp@latest --port 4797

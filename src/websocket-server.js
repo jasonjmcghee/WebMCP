@@ -1210,6 +1210,11 @@ async function authorizeChannelToken(encodedPair) {
 
 // Function to check if server is already running
 async function isServerRunning() {
+    // If using "docker" and "startMCP" just assume the server is running
+    if (CONFIG.startMCP && CONFIG.docker) {
+        return true;
+    }
+
     try {
         // Check if PID file exists
         const pidData = await fs.readFile(PID_FILE, 'utf8');
@@ -1276,6 +1281,7 @@ const parseArgs = () => {
     let quit = false;
     let newToken = false;
     let startMCP = false;
+    let docker = false;
     let cleanTokens = false;
     let encodedPair = null;
     let daemon = true; // Default to daemonize
@@ -1307,11 +1313,13 @@ const parseArgs = () => {
             newToken = true;
         } else if (arg === '-m' || arg === '--mcp') {
             startMCP = true;
+        } else if (arg === '-d' || arg === '--docker') {
+            docker = true;
         } else if (arg === '-c' || arg === '--clean') {
             cleanTokens = true;
         } else if (arg === '-f' || arg === '--foreground') {
             daemon = false;
-        } else if (arg === '-f' || arg === '--forked') {
+        } else if (arg === '--forked') {
             // This is an internal flag to indicate we're the forked child                                                                                                   │ │
             // No need to do anything with it here, just don't error on it
         } else {
@@ -1335,6 +1343,8 @@ Options:
   -n, --new                      Generate a new token for client registration
   -c, --clean                    Remove all authorized tokens
   -f, --foreground               Run in foreground (don't daemonize)
+  -m, --mcp                      Internal WebMCP Server codepath, likely only used in MCP client config
+  -d, --docker                   Tell the MCP client that WebMCP is running in docker
   
 Use --new to generate a token which clients can use to register on the /register endpoint.
 Use --clean to remove all authorized tokens when you want to start fresh.

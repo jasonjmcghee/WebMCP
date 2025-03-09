@@ -11,7 +11,8 @@ import {
     ListToolsRequestSchema,
     ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
-import {generateNewRegistrationToken, generateToken} from "./tokens.js";
+import {generateNewRegistrationToken} from "./tokens.js";
+import {CONFIG} from "./config.js";
 
 // Create a central MCP server that communicates over stdio
 const mcpServer = new Server(
@@ -195,7 +196,7 @@ async function handleWebSocketMessage(message) {
 // Function to connect to the WebSocket server
 function connectToWebSocketServer(serverToken) {
     // Connect to the MCP path directly with server token
-    const serverUrl = `ws://localhost:4797${MCP_PATH}?token=${serverToken}`;
+    const serverUrl = `ws://localhost:${CONFIG.port}${MCP_PATH}?token=${serverToken}`;
 
     console.error(`Connecting to WebSocket server at ${MCP_PATH} with authentication...`);
 

@@ -95,3 +95,11 @@ able to perform prompt injection attacks and similar. If you have constructive i
 - Token generator (for connecting to WebMCP websites)
 - MCP Tool Definer (to simplify building the schema of a tool for use with MCP)
   - You can ask for the javascript (if relevant) in a follow-up message for use with WebMCP
+
+## Docker
+
+There is a `Dockerfile` specifically for Smithery deployment.
+
+If you'd like to use docker to run the websocket server, I've added a `docker-compose.yml` for demonstration purposes.
+
+If `--docker` is provided to the mcp client config alongside `--mcp`, it will assume the server is running. This will allow you to dockerize the main process (websocket server), and your mcp client will connect to your docker container via websocket. Similarly, websites will communicate with your docker container.
