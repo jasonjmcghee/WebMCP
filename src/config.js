@@ -95,10 +95,12 @@ const availableClientConfigs = {
 
 async function configureMcpClient(clientType) {
     let clientConfigPath = availableClientConfigs[clientType];
-    if (!clientConfigPath) {
-        throw new Error("Client not supported");
+    if (clientConfigPath) {
+
+    } else {
+        console.error("Unsupported client - treating it like a path...")
+        await configureMcpClientWithPath(clientType);
     }
-    await configureMcpClientWithPath(path.join(...clientConfigPath));
 }
 
 export {
@@ -113,5 +115,4 @@ export {
     setConfig,
     configureMcpClientWithPath,
     configureMcpClient,
-    availableClientConfigs,
 };

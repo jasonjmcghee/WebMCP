@@ -20,7 +20,8 @@ import {
     SERVER_TOKEN,
     ensureConfigDir,
     formatChannel,
-    setConfig, configureMcpClient, configureMcpClientWithPath, availableClientConfigs,
+    setConfig,
+    configureMcpClient,
 } from './config.js';
 
 let serverToken = SERVER_TOKEN;
@@ -1310,11 +1311,7 @@ const parseArgs = async () => {
         } else if (arg === '--config') {
             if (i + 1 < args.length) {
                 const config = args[i + 1];
-                if (availableClientConfigs[config]) {
-                    await configureMcpClient(config)
-                } else {
-                    await configureMcpClientWithPath(config)
-                }
+                await configureMcpClient(config)
                 i++; // Skip the next argument as we've already processed it
             } else {
                 console.error('Error: Config option requires a mcp client type or path to json');
@@ -1351,6 +1348,7 @@ const showHelp = () => {
 Usage: node websocket-server.js [options]
 
 Options:
+  --config                       Automatically update MCP client configuration to add WebMCP
   -p, --port <number>            Specify the port number (default: 4797)
   -h, --help                     Display this help message
   -q, --quit                     Stop the running server
