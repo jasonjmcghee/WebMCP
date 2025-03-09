@@ -24,7 +24,7 @@ https://github.com/user-attachments/assets/61229470-1242-401e-a7d9-c0d762d7b519
 
 _I am not associated with Smithery and have no control over their binary. My understanding is that it is opt-in, but it may send analytics / telemetry to them. If you have any concerns with this, there's manual installation instructions directly below._
 
-But, you can specify any client smithery supports (claude, cursor, windsurf, cline, witsy, enconvo, goose, etc.)
+Just specify your client that smithery supports (`claude`, `cursor`, `windsurf`, `cline`, `witsy`, `enconvo`, `goose`, etc.)
 
 ```bash
 npx -y @smithery/cli install @jasonjmcghee/webmcp --client claude
