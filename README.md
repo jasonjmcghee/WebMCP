@@ -62,6 +62,10 @@ https://github.com/user-attachments/assets/43ad160a-846d-48ad-9af9-f6d537e78473
 
 ## More Info About How It Works
 
+The bridge between the MCP client and the website is a localhost-only (not accessible to requests outside your computer) websocket server. Because it is configured to allow requests from your local web browser, authentication / token exchange is required, in case you visit a website attempting to abuse this.
+
+_Ideally the web browser itself would have an explicit permission for this, like webcam or microphone use._
+
 1. The MCP client connects to the `/mcp` path using the server token from `.env` (auto-generated)
 2. The server generates a registration token (instigated via the built-in mcp tool by a model or the `--new` command)
 3. Web clients connect to the `/register` endpoint with this token and its domain.
@@ -72,6 +76,50 @@ https://github.com/user-attachments/assets/43ad160a-846d-48ad-9af9-f6d537e78473
 6. The web page performs the request (e.g. call tool) and sends the result back through the same path
 7. Multiple web pages can be connected simultaneously, each with their own set of tools and tokens
 8. The MCP client sees all tools as a unified list, with channel prefixes to avoid name collisions
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant MCP as MCP Client
+    participant Server as MCP Server
+    participant WS as WebSocket Server
+    participant Web as Website
+    
+    %% Initial connection
+    MCP->>Server: Connect to /mcp with internal server token
+    
+    %% Website registration token
+    User->>MCP: Request registration token
+    MCP->>Server: Request registration token
+    Server-->>MCP: Return registration token
+    MCP-->>User: Display registration token
+    
+    %% Website registration
+    User->>Web: Paste registration token
+    Web->>WS: Connect to /register with token & domain (registration token deleted)
+    WS-->>Web: Assign channel & session token
+    Web->>WS: Connect to assigned channel
+    
+    %% Tool interaction
+    MCP->>Server: Request tools list
+    Server->>WS: Forward request
+    WS->>Web: Request tools
+    Web-->>WS: Return tools list
+    WS-->>Server: Forward tools list
+    Server-->>MCP: Return tools list
+    
+    %% Tool execution
+    MCP->>Server: Tool request
+    Server->>WS: Forward request
+    WS->>Web: Execute tool
+    Web-->>WS: Return result
+    WS-->>Server: Forward result
+    Server-->>MCP: Return result
+    
+    %% Disconnection
+    User->>Web: Disconnect
+    Web->>WS: Close connection
+```
 
 ## Security
 
