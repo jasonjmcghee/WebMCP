@@ -96,7 +96,7 @@ const availableClientConfigs = {
 async function configureMcpClient(clientType) {
     let clientConfigPath = availableClientConfigs[clientType];
     if (clientConfigPath) {
-
+        await configureMcpClientWithPath(clientConfigPath);
     } else {
         console.error("Unsupported client - treating it like a path...")
         await configureMcpClientWithPath(clientType);
