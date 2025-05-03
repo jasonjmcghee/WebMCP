@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/jasonjmcghee-webmcp-badge.png)](https://mseep.ai/app/jasonjmcghee-webmcp)
+
 # WebMCP
 
 A proposal and code for websites to support client side LLMs
