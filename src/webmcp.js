@@ -15,6 +15,11 @@ class WebMCP {
             size: '30px',
             padding: '20px',
             inactivityTimeout: 5 * 60 * 1000, // 5 minutes in milliseconds
+            persistSessions: false, // Enable localStorage persistence (requires user consent)
+            autoReconnect: true, // Enable automatic reconnection
+            maxReconnectAttempts: 5, // Maximum reconnection attempts
+            healthCheckInterval: 30000, // Health check every 30 seconds
+            announceCapabilities: true, // Announce capabilities on connect
             ...options
         };
 
@@ -35,11 +40,18 @@ class WebMCP {
         this.registeredPrompts = new Set();
         this.registeredResources = new Set();
 
+        // Connection health monitoring
+        this.reconnectAttempts = 0;
+        this.healthCheckTimer = null;
+        this.lastPongTimestamp = null;
+
         // Storage keys for sessionStorage
         this.SESSION_STORAGE_KEY = 'webmcp_token';
         this.TOOLS_STORAGE_KEY = 'webmcp_tools';
         this.PROMPTS_STORAGE_KEY = 'webmcp_prompts';
         this.RESOURCES_STORAGE_KEY = 'webmcp_resources';
+        this.PERSIST_STORAGE_KEY = 'webmcp_persist_token';
+        this.PERSIST_CONSENT_KEY = 'webmcp_persist_consent';
 
         // Constants
         this.REGISTER_PATH = '/register';
@@ -77,17 +89,28 @@ class WebMCP {
     }
 
     /**
-     * Check for stored connection info in sessionStorage and connect if found
+     * Check for stored connection info in sessionStorage or localStorage and connect if found
      * @private
      */
     _checkStoredToken() {
-        const storedConnectionInfo = sessionStorage.getItem(this.SESSION_STORAGE_KEY);
+        // First check sessionStorage (current session)
+        let storedConnectionInfo = sessionStorage.getItem(this.SESSION_STORAGE_KEY);
+        let source = 'session';
+
+        // If not in sessionStorage and persistence is enabled, check localStorage
+        if (!storedConnectionInfo && this.options.persistSessions) {
+            const hasConsent = localStorage.getItem(this.PERSIST_CONSENT_KEY) === 'true';
+            if (hasConsent) {
+                storedConnectionInfo = localStorage.getItem(this.PERSIST_STORAGE_KEY);
+                source = 'persist';
+            }
+        }
 
         if (storedConnectionInfo) {
             try {
                 const connectionInfo = JSON.parse(storedConnectionInfo);
                 if (connectionInfo.token) {
-                    console.log('Found stored connection info, attempting to connect');
+                    console.log(`Found stored connection info in ${source} storage, attempting to connect`);
 
                     // Set the connection properties directly
                     this.currentServer = connectionInfo.server;
@@ -118,8 +141,14 @@ class WebMCP {
             } catch (error) {
                 console.error('Error parsing stored connection info:', error);
                 sessionStorage.removeItem(this.SESSION_STORAGE_KEY);
+                if (source === 'persist') {
+                    localStorage.removeItem(this.PERSIST_STORAGE_KEY);
+                }
                 this._clearStoredItems();
             }
+        } else if (this.options.persistSessions && !localStorage.getItem(this.PERSIST_CONSENT_KEY)) {
+            // Show consent dialog if persistence is enabled but not yet consented
+            this._showPersistenceConsentDialog();
         }
     }
 
@@ -272,6 +301,73 @@ class WebMCP {
         sessionStorage.removeItem(this.PROMPTS_STORAGE_KEY);
         sessionStorage.removeItem(this.RESOURCES_STORAGE_KEY);
         console.log('Cleared stored items from session storage');
+    }
+
+    /**
+     * Show persistence consent dialog
+     * @private
+     */
+    _showPersistenceConsentDialog() {
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            position: fixed; bottom: 80px; right: ${this.options.padding};
+            background: white; border: 2px solid ${this.options.color};
+            padding: 20px; border-radius: 8px; max-width: 350px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+
+        dialog.innerHTML = `
+            <h4 style="margin: 0 0 10px 0; color: #333;">
+                Remember WebMCP Connection?
+            </h4>
+            <p style="margin: 0 0 15px 0; font-size: 14px; color: #666;">
+                Would you like this site to remember your WebMCP connection across browser sessions?
+                This will save your connection token locally.
+            </p>
+            <div style="display: flex; gap: 10px;">
+                <button id="webmcp-consent-yes" style="
+                    flex: 1; background: ${this.options.color}; color: white;
+                    border: none; padding: 10px; border-radius: 4px; cursor: pointer;
+                    font-size: 14px; font-weight: 500;">
+                    Yes, Remember
+                </button>
+                <button id="webmcp-consent-no" style="
+                    flex: 1; background: transparent; color: #666;
+                    border: 1px solid #ddd; padding: 10px; border-radius: 4px; cursor: pointer;
+                    font-size: 14px;">
+                    No Thanks
+                </button>
+            </div>
+        `;
+
+        document.body.appendChild(dialog);
+
+        document.getElementById('webmcp-consent-yes').addEventListener('click', () => {
+            localStorage.setItem(this.PERSIST_CONSENT_KEY, 'true');
+            document.body.removeChild(dialog);
+            console.log('Persistence consent granted');
+        });
+
+        document.getElementById('webmcp-consent-no').addEventListener('click', () => {
+            localStorage.setItem(this.PERSIST_CONSENT_KEY, 'false');
+            document.body.removeChild(dialog);
+            console.log('Persistence consent denied');
+        });
+    }
+
+    /**
+     * Save connection to persistent storage if consent given
+     * @private
+     */
+    _saveToPersistentStorage(connectionInfo) {
+        if (!this.options.persistSessions) return;
+
+        const hasConsent = localStorage.getItem(this.PERSIST_CONSENT_KEY) === 'true';
+        if (hasConsent) {
+            localStorage.setItem(this.PERSIST_STORAGE_KEY, JSON.stringify(connectionInfo));
+            console.log('Connection saved to persistent storage');
+        }
     }
 
     /**
@@ -971,6 +1067,9 @@ class WebMCP {
                 this.currentToken = response.token;
 
                 sessionStorage.setItem(this.SESSION_STORAGE_KEY, JSON.stringify(connectionInfo));
+
+                // Also save to persistent storage if consent given
+                this._saveToPersistentStorage(connectionInfo);
             }
 
             // Now connect to the actual channel
@@ -1013,9 +1112,21 @@ class WebMCP {
         this.currentToken = '';
         this.currentServer = '';
         this.currentChannel = '';
+        this.reconnectAttempts = 0;
+
+        // Clear health check timer
+        if (this.healthCheckTimer) {
+            clearInterval(this.healthCheckTimer);
+            this.healthCheckTimer = null;
+        }
 
         // Remove the token from sessionStorage
         sessionStorage.removeItem(this.SESSION_STORAGE_KEY);
+
+        // Also remove from persistent storage
+        if (this.options.persistSessions) {
+            localStorage.removeItem(this.PERSIST_STORAGE_KEY);
+        }
 
         // Clear items from sessionStorage
         this._clearStoredItems();
@@ -1137,18 +1248,32 @@ class WebMCP {
         // Set up socket open handler
         this.socket.addEventListener('open', () => {
             this.isConnected = true;
+            this.reconnectAttempts = 0; // Reset reconnect counter on successful connection
             this._updateStatus('connected', `Connected to ${this.currentChannel}`);
             this._updateConnectionUI(true);
             console.log('WebMCP connection established');
             this._registerItemsWithServer();
+
+            // Start health check monitoring
+            this._startHealthChecks();
+
+            // Announce capabilities if enabled
+            if (this.options.announceCapabilities) {
+                this._announceCapabilities();
+            }
         });
 
         // Set up socket close handler
         this.socket.addEventListener('close', (event) => {
             this.isConnected = false;
-            this._updateStatus('disconnected', 'Disconnected');
             this._updateConnectionUI(false);
             console.log(`Connection closed: ${event.code} ${event.reason}`);
+
+            // Stop health checks
+            if (this.healthCheckTimer) {
+                clearInterval(this.healthCheckTimer);
+                this.healthCheckTimer = null;
+            }
 
             // Check if it was an authorization error
             if (event.code === 1001 || event.code === 401) {
@@ -1157,6 +1282,20 @@ class WebMCP {
                 this.currentServer = '';
                 this.currentChannel = '';
                 sessionStorage.removeItem(this.SESSION_STORAGE_KEY);
+                return;
+            }
+
+            // Check if it was a normal close (user-initiated)
+            if (event.code === 1000) {
+                this._updateStatus('disconnected', 'Disconnected');
+                return;
+            }
+
+            // Unexpected close - attempt reconnect if enabled
+            if (this.options.autoReconnect) {
+                this._attemptReconnect();
+            } else {
+                this._updateStatus('disconnected', 'Connection lost');
             }
         });
 
@@ -1169,8 +1308,6 @@ class WebMCP {
             } else {
                 this._updateStatus('disconnected', 'Connection failed');
             }
-
-            sessionStorage.removeItem(this.SESSION_STORAGE_KEY);
         });
 
         // Set up socket message handler
@@ -1251,6 +1388,11 @@ class WebMCP {
                 });
                 break;
 
+            case 'pong':
+                // Health check response
+                this.lastPongTimestamp = Date.now();
+                break;
+
             case 'error':
                 console.error(`Server error: ${message.message}`);
                 break;
@@ -1258,6 +1400,176 @@ class WebMCP {
             default:
                 console.warn(`Unknown message type: ${message.type}`);
         }
+    }
+
+    /**
+     * Attempt to reconnect after connection loss
+     * @private
+     */
+    _attemptReconnect() {
+        if (this.reconnectAttempts >= this.options.maxReconnectAttempts) {
+            this._updateStatus('disconnected', 'Could not reconnect. Please check WebMCP server.');
+            this._showReconnectHelp();
+            return;
+        }
+
+        this.reconnectAttempts++;
+        const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000); // Exponential backoff, max 10s
+
+        this._updateStatus('connecting', `Reconnecting... (attempt ${this.reconnectAttempts}/${this.options.maxReconnectAttempts})`);
+
+        setTimeout(() => {
+            console.log(`Reconnection attempt ${this.reconnectAttempts}`);
+            const storedConnectionInfo = sessionStorage.getItem(this.SESSION_STORAGE_KEY);
+
+            if (storedConnectionInfo) {
+                try {
+                    const connectionInfo = JSON.parse(storedConnectionInfo);
+                    this.connect(connectionInfo.token);
+                } catch (error) {
+                    console.error('Error during reconnection:', error);
+                    this._updateStatus('disconnected', 'Reconnection failed');
+                }
+            } else {
+                this._updateStatus('disconnected', 'No stored connection found');
+            }
+        }, delay);
+    }
+
+    /**
+     * Start health check monitoring
+     * @private
+     */
+    _startHealthChecks() {
+        if (this.healthCheckTimer) {
+            clearInterval(this.healthCheckTimer);
+        }
+
+        this.lastPongTimestamp = Date.now();
+
+        this.healthCheckTimer = setInterval(() => {
+            if (!this.isConnected || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            // Send ping
+            this._sendMessage({
+                type: 'ping',
+                id: crypto.randomUUID(),
+                timestamp: Date.now()
+            });
+
+            // Check if we received a pong recently
+            const timeSinceLastPong = Date.now() - this.lastPongTimestamp;
+            if (timeSinceLastPong > this.options.healthCheckInterval * 2) {
+                console.warn('Health check failed: no pong received');
+                // Connection might be dead, close it to trigger reconnect
+                this.socket.close();
+            }
+        }, this.options.healthCheckInterval);
+    }
+
+    /**
+     * Show reconnection help dialog
+     * @private
+     */
+    _showReconnectHelp() {
+        const helpPanel = document.createElement('div');
+        helpPanel.id = 'webmcp-reconnect-help';
+        helpPanel.style.cssText = `
+            position: fixed; bottom: 80px; right: ${this.options.padding};
+            background: #fff3cd; border: 2px solid #ffc107;
+            padding: 15px; border-radius: 8px; max-width: 350px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+
+        helpPanel.innerHTML = `
+            <h4 style="margin: 0 0 10px 0; color: #856404;">
+                WebMCP Server Not Running
+            </h4>
+            <p style="margin: 0 0 10px 0; font-size: 14px; color: #856404;">
+                To use AI features on this site, start the WebMCP server:
+            </p>
+            <code style="display: block; background: #fff; padding: 8px;
+                       border-radius: 4px; font-size: 12px; margin-bottom: 10px; font-family: monospace;">
+                npx @jason.today/webmcp --mcp
+            </code>
+            <div style="display: flex; gap: 8px;">
+                <button id="webmcp-retry" style="
+                    flex: 1; background: #ffc107; border: none; padding: 8px 12px;
+                    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                    Retry Connection
+                </button>
+                <button id="webmcp-dismiss" style="
+                    flex: 1; background: transparent; border: 1px solid #856404;
+                    padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                    Dismiss
+                </button>
+            </div>
+        `;
+
+        // Remove existing help panel if any
+        const existing = document.getElementById('webmcp-reconnect-help');
+        if (existing) {
+            document.body.removeChild(existing);
+        }
+
+        document.body.appendChild(helpPanel);
+
+        document.getElementById('webmcp-retry').addEventListener('click', () => {
+            this.reconnectAttempts = 0;
+            this._attemptReconnect();
+            document.body.removeChild(helpPanel);
+        });
+
+        document.getElementById('webmcp-dismiss').addEventListener('click', () => {
+            document.body.removeChild(helpPanel);
+        });
+    }
+
+    /**
+     * Announce capabilities to the console for user awareness
+     * @private
+     */
+    _announceCapabilities() {
+        setTimeout(() => {
+            const toolCount = this.availableTools.size;
+            const promptCount = this.availablePrompts.size;
+            const resourceCount = this.availableResources.size;
+
+            if (toolCount === 0 && promptCount === 0 && resourceCount === 0) {
+                console.log('%c🎉 WebMCP Connected!', 'font-size: 14px; font-weight: bold; color: #007bff;');
+                console.log('%cℹ️ This site hasn\'t registered any tools yet. Check back after the page loads.', 'font-size: 12px; color: #666;');
+                return;
+            }
+
+            console.log('%c🎉 WebMCP Connected!', 'font-size: 14px; font-weight: bold; color: #007bff;');
+            console.log(`%cI can now help you with:`, 'font-size: 13px; font-weight: bold; color: #333;');
+
+            if (toolCount > 0) {
+                console.log(`\n%c🔧 ${toolCount} Tool${toolCount > 1 ? 's' : ''} Available:`, 'font-weight: bold; color: #28a745;');
+                Array.from(this.availableTools.values()).forEach(tool => {
+                    console.log(`  • ${tool.name}: ${tool.description}`);
+                });
+            }
+
+            if (promptCount > 0) {
+                console.log(`\n%c💬 ${promptCount} Prompt${promptCount > 1 ? 's' : ''} Available:`, 'font-weight: bold; color: #17a2b8;');
+                Array.from(this.availablePrompts.values()).forEach(prompt => {
+                    console.log(`  • ${prompt.name}: ${prompt.description}`);
+                });
+            }
+
+            if (resourceCount > 0) {
+                console.log(`\n%c📚 ${resourceCount} Resource${resourceCount > 1 ? 's' : ''} Available:`, 'font-weight: bold; color: #6f42c1;');
+                Array.from(this.availableResources.values()).forEach(resource => {
+                    console.log(`  • ${resource.name}: ${resource.description}`);
+                });
+            }
+
+            console.log(`\n%cTip: Ask Claude about anything on this site - these capabilities are now available!`, 'font-size: 12px; color: #666; font-style: italic;');
+        }, 500); // Small delay to let tools register first
     }
 
     /**
