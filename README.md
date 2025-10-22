@@ -84,7 +84,10 @@ sequenceDiagram
     participant Server as MCP Server
     participant WS as WebSocket Server
     participant Web as Website
-    
+
+    %% Legend: Green (User, MCP Client, MCP Server, WebSocket Server) = runs locally
+    %% Legend: Orange (Website) = runs remotely
+
     %% Initial connection
     MCP->>Server: Connect to /mcp with internal server token
     
@@ -139,3 +142,17 @@ There is a `Dockerfile` specifically for Smithery deployment.
 If you'd like to use docker to run the websocket server, I've added a `docker-compose.yml` for demonstration purposes.
 
 If `--docker` is provided to the mcp client config alongside `--mcp`, it will assume the server is running. This will allow you to dockerize the main process (websocket server), and your mcp client will connect to your docker container via websocket. Similarly, websites will communicate with your docker container.
+
+## Community Improvements
+
+### Client-side enhancements
+- Automatic reconnection with exponential backoff
+- State persistence across page reloads
+- Capability announcements for feature detection
+- Connection health monitoring
+
+### Server-side enhancements
+- Plugin adapter architecture for vendor-agnostic integrations
+- Pluggable transport layer (stdio, SSE, WebSocket)
+- Standardized initialization and capability negotiation
+- Example adapters for OpenAI and Anthropic integration patterns
