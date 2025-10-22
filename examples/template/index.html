@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebMCP Template Example</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .feature {
+            border-left: 4px solid #667eea;
+            padding-left: 15px;
+            margin: 10px 0;
+        }
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #5568d3;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 WebMCP Template Example</h1>
+        <p>A complete example showing how to integrate WebMCP with vendor-agnostic adapters</p>
+    </div>
+
+    <div class="section">
+        <h2>📋 Quick Start</h2>
+        <ol>
+            <li>Start the WebMCP server: <code>npx @jason.today/webmcp --mcp</code></li>
+            <li>Get a connection token in Claude Desktop</li>
+            <li>Paste the token in the WebMCP widget (bottom-right corner)</li>
+            <li>Try the example tools below!</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>🎯 Example Tools</h2>
+        <p>Once connected, you can ask Claude to:</p>
+        <ul>
+            <li>"Search for items matching 'example'"</li>
+            <li>"Get the current status"</li>
+            <li>"Show me example data"</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>🧪 Test Buttons</h2>
+        <p>These buttons demonstrate what the tools do:</p>
+        <button class="button" onclick="testSearch()">Test Search</button>
+        <button class="button" onclick="testStatus()">Test Status</button>
+        <button class="button" onclick="testData()">Test Data</button>
+        <div id="test-output" style="margin-top: 10px;"></div>
+    </div>
+
+    <div class="section">
+        <h2>⚙️ Configuration Example</h2>
+        <p>This page demonstrates:</p>
+        <div class="feature">
+            <strong>Session Persistence:</strong> Enabled (with user consent dialog)
+        </div>
+        <div class="feature">
+            <strong>Auto-Reconnect:</strong> Enabled (up to 5 attempts)
+        </div>
+        <div class="feature">
+            <strong>Capability Announcements:</strong> Enabled (check console)
+        </div>
+        <div class="feature">
+            <strong>Health Monitoring:</strong> 30-second ping interval
+        </div>
+    </div>
+
+    <!-- Load WebMCP -->
+    <script src="../../src/webmcp.js"></script>
+
+    <!-- Initialize WebMCP with all features -->
+    <script>
+        // Initialize WebMCP with enhanced options
+        const webmcp = new WebMCP({
+            color: '#667eea',
+            position: 'bottom-right',
+            persistSessions: true,        // Enable localStorage persistence
+            autoReconnect: true,          // Enable auto-reconnect
+            maxReconnectAttempts: 5,      // Max 5 reconnection attempts
+            healthCheckInterval: 30000,   // Health check every 30 seconds
+            announceCapabilities: true    // Show capabilities in console
+        });
+
+        // Example tool: Search
+        webmcp.registerTool(
+            'search',
+            'Search for items in the example system',
+            {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string',
+                        description: 'Search query'
+                    },
+                    limit: {
+                        type: 'number',
+                        description: 'Maximum number of results',
+                        default: 10
+                    }
+                },
+                required: ['query']
+            },
+            async (args) => {
+                console.log('Searching for:', args.query);
+
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                return {
+                    query: args.query,
+                    results: [
+                        { id: 1, title: `Result 1 for "${args.query}"`, score: 0.95 },
+                        { id: 2, title: `Result 2 for "${args.query}"`, score: 0.87 },
+                        { id: 3, title: `Result 3 for "${args.query}"`, score: 0.76 }
+                    ].slice(0, args.limit || 10),
+                    total: 3
+                };
+            }
+        );
+
+        // Example tool: Get Status
+        webmcp.registerTool(
+            'get_status',
+            'Get the current system status',
+            {
+                type: 'object',
+                properties: {}
+            },
+            async () => {
+                return {
+                    status: 'operational',
+                    uptime: '99.9%',
+                    version: '1.0.0',
+                    timestamp: new Date().toISOString(),
+                    features: {
+                        search: 'enabled',
+                        analytics: 'enabled',
+                        persistence: 'enabled'
+                    }
+                };
+            }
+        );
+
+        // Example tool: Get Data
+        webmcp.registerTool(
+            'get_example_data',
+            'Retrieve example data from the system',
+            {
+                type: 'object',
+                properties: {
+                    dataType: {
+                        type: 'string',
+                        description: 'Type of data to retrieve',
+                        enum: ['users', 'products', 'orders']
+                    }
+                }
+            },
+            async (args) => {
+                const dataType = args.dataType || 'users';
+
+                const mockData = {
+                    users: [
+                        { id: 1, name: 'Alice', role: 'admin' },
+                        { id: 2, name: 'Bob', role: 'user' }
+                    ],
+                    products: [
+                        { id: 1, name: 'Widget A', price: 29.99 },
+                        { id: 2, name: 'Widget B', price: 39.99 }
+                    ],
+                    orders: [
+                        { id: 1, user: 'Alice', total: 59.98, status: 'shipped' },
+                        { id: 2, user: 'Bob', total: 29.99, status: 'pending' }
+                    ]
+                };
+
+                return {
+                    dataType,
+                    items: mockData[dataType] || [],
+                    count: mockData[dataType]?.length || 0
+                };
+            }
+        );
+
+        // Example prompt
+        webmcp.registerPrompt(
+            'example_guide',
+            'A guide to using this example site',
+            [],
+            async () => {
+                return {
+                    messages: [{
+                        role: 'user',
+                        content: {
+                            type: 'text',
+                            text: `You are now connected to the WebMCP Template Example.
+
+This site demonstrates:
+- 3 example tools (search, get_status, get_example_data)
+- Session persistence across browser sessions
+- Automatic reconnection on network issues
+- Health monitoring with ping/pong
+- Capability announcements
+
+You can help users by:
+1. Searching for items
+2. Checking system status
+3. Retrieving example data (users, products, or orders)
+
+All tools are working and ready to use!`
+                        }
+                    }]
+                };
+            }
+        );
+
+        // Example resource
+        webmcp.registerResource(
+            'site_info',
+            'Information about this example site',
+            {
+                uri: 'webmcp://template.example/info',
+                mimeType: 'application/json'
+            },
+            async (uri) => {
+                return {
+                    contents: [{
+                        uri: uri,
+                        text: JSON.stringify({
+                            name: 'WebMCP Template Example',
+                            version: '1.0.0',
+                            features: [
+                                'Session persistence',
+                                'Auto-reconnect',
+                                'Health monitoring',
+                                'Capability announcements'
+                            ],
+                            tools: ['search', 'get_status', 'get_example_data'],
+                            documentation: 'See examples/template/README.md'
+                        }, null, 2),
+                        mimeType: 'application/json'
+                    }]
+                };
+            }
+        );
+
+        // Test button functions
+        function testSearch() {
+            const output = document.getElementById('test-output');
+            output.innerHTML = '<div class="status info">Searching...</div>';
+
+            // Get the search tool and execute it
+            const searchTool = webmcp.availableTools.get('search');
+            if (searchTool) {
+                searchTool.execute({ query: 'example', limit: 3 })
+                    .then(result => {
+                        output.innerHTML = `<div class="status success">
+                            <strong>Search Results:</strong><br>
+                            ${result.results.map(r => `• ${r.title} (score: ${r.score})`).join('<br>')}
+                        </div>`;
+                    });
+            }
+        }
+
+        function testStatus() {
+            const output = document.getElementById('test-output');
+            const statusTool = webmcp.availableTools.get('get_status');
+            if (statusTool) {
+                statusTool.execute({})
+                    .then(result => {
+                        output.innerHTML = `<div class="status success">
+                            <strong>System Status:</strong><br>
+                            Status: ${result.status}<br>
+                            Uptime: ${result.uptime}<br>
+                            Version: ${result.version}
+                        </div>`;
+                    });
+            }
+        }
+
+        function testData() {
+            const output = document.getElementById('test-output');
+            const dataTool = webmcp.availableTools.get('get_example_data');
+            if (dataTool) {
+                dataTool.execute({ dataType: 'products' })
+                    .then(result => {
+                        output.innerHTML = `<div class="status success">
+                            <strong>Example Data (${result.dataType}):</strong><br>
+                            ${result.items.map(item => `• ${item.name}: $${item.price}`).join('<br>')}
+                        </div>`;
+                    });
+            }
+        }
+
+        console.log('%c📚 WebMCP Template Example Loaded', 'font-size: 16px; font-weight: bold; color: #667eea;');
+        console.log('Check the browser console after connecting to see capability announcements!');
+    </script>
+</body>
+</html>
